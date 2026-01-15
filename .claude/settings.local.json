@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit - Jump Runner project with BMAD Method\n\n- Install BMAD Method framework and agents\n- Create project structure \\(src, docs, assets, dist\\)\n- Add Project Brief \\(docs/brief.md\\) created by Analyst agent\n- Configure Git with README and .gitignore\n\nProject: Jump Runner - Web auto-scroller mini-game\nPurpose: Learn and validate BMAD Method applied to game development\nTimeline: MVP in a few days\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Skill(BMad:agents:pm)",
+      "Skill(BMad:agents:architect)"
     ]
   }
 }
