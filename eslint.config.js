@@ -21,6 +21,7 @@ export default [
         requestAnimationFrame: 'readonly',
         KeyboardEvent: 'readonly',
         MouseEvent: 'readonly',
+        performance: 'readonly',
       },
     },
     plugins: {

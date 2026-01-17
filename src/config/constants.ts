@@ -10,6 +10,18 @@ export const GAME = {
 
 export const CANVAS = {
   BACKGROUND_COLOR: '#1a1a2e',
+  GROUND_Y_PERCENT: 0.8,
+  PLAYER_X_PERCENT: 0.15,
+} as const;
+
+export const COLORS = {
+  SKY: '#1a1a2e',
+  GROUND: '#16213e',
+  FPS_TEXT: '#ffffff',
+} as const;
+
+export const DEBUG = {
+  SHOW_FPS: true,
 } as const;
 
 export const PHYSICS = {
