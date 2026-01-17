@@ -44,3 +44,10 @@ export const PLAYER = {
   HITBOX_WIDTH: 30,
   HITBOX_HEIGHT: 60,
 } as const;
+
+export const SCROLL = {
+  SPEED: 300,
+  GROUND_MARK_WIDTH: 3,
+  GROUND_MARK_GAP: 60,
+  DECORATION_COUNT: 10,
+} as const;

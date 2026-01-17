@@ -25,3 +25,14 @@ export type InputAction =
   | { type: 'jump_start' }
   | { type: 'jump_end' }
   | { type: 'start_game' };
+
+export interface GroundMark {
+  x: number;
+}
+
+export interface Decoration {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}

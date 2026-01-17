@@ -13,8 +13,8 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 1.1 | Project Setup & CI/CD | Done |
 | 1.2 | Game Loop & Canvas Rendering | Done |
 | 1.3 | Player Entity & Basic Jump | Done |
-| 1.4 | Variable Jump Height | **Ready for Review** |
-| 1.5 | Scrolling Background | À faire |
+| 1.4 | Variable Jump Height | Done |
+| 1.5 | Scrolling Background | **Ready for Review** |
 
 ## Prochaine Action
 

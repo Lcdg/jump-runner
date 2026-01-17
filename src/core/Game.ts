@@ -6,8 +6,8 @@
 import { Renderer } from '../rendering/Renderer';
 import { Player } from '../entities/Player';
 import { InputManager } from '../input/InputManager';
-import { InputAction } from './types';
-import { DEBUG, COLORS, PLAYER } from '../config/constants';
+import { InputAction, GroundMark, Decoration } from './types';
+import { DEBUG, COLORS, PLAYER, SCROLL } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -21,11 +21,37 @@ export class Game {
   private fpsLastTime: number = 0;
   private currentFps: number = 0;
 
+  // Scrolling
+  private groundMarks: GroundMark[] = [];
+  private decorations: Decoration[] = [];
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
     this.inputManager = new InputManager();
     this.inputManager.attach((action) => this.handleInput(action));
+    this.initScrollingElements();
+  }
+
+  private initScrollingElements(): void {
+    const width = this.renderer.getWidth();
+    const groundY = this.renderer.getGroundY();
+
+    // Initialize ground marks
+    const markCount = Math.ceil(width / SCROLL.GROUND_MARK_GAP) + 2;
+    for (let i = 0; i < markCount; i++) {
+      this.groundMarks.push({ x: i * SCROLL.GROUND_MARK_GAP });
+    }
+
+    // Initialize decorations
+    for (let i = 0; i < SCROLL.DECORATION_COUNT; i++) {
+      this.decorations.push({
+        x: Math.random() * width,
+        y: groundY - 30 - Math.random() * 150,
+        width: 2 + Math.random() * 4,
+        height: 10 + Math.random() * 30,
+      });
+    }
   }
 
   start(): void {
@@ -77,16 +103,57 @@ export class Game {
       this.player.holdJump(deltaTime);
     }
     this.player.update(deltaTime);
+    this.updateScrolling(deltaTime);
+  }
+
+  private updateScrolling(deltaTime: number): void {
+    const width = this.renderer.getWidth();
+    const groundY = this.renderer.getGroundY();
+    const scrollAmount = SCROLL.SPEED * deltaTime;
+
+    // Update ground marks
+    for (const mark of this.groundMarks) {
+      mark.x -= scrollAmount;
+      if (mark.x < -SCROLL.GROUND_MARK_WIDTH) {
+        // Find the rightmost mark and position after it
+        const maxX = Math.max(...this.groundMarks.map((m) => m.x));
+        mark.x = maxX + SCROLL.GROUND_MARK_GAP;
+      }
+    }
+
+    // Update decorations
+    for (const deco of this.decorations) {
+      deco.x -= scrollAmount;
+      if (deco.x < -deco.width) {
+        // Recycle to the right with random position
+        deco.x = width + Math.random() * 100;
+        deco.y = groundY - 30 - Math.random() * 150;
+        deco.width = 2 + Math.random() * 4;
+        deco.height = 10 + Math.random() * 30;
+      }
+    }
   }
 
   private render(): void {
     this.renderer.clear();
+    this.renderDecorations();
     this.renderGround();
     this.renderPlayer();
 
     if (DEBUG.SHOW_FPS) {
       this.renderFps();
     }
+  }
+
+  private renderDecorations(): void {
+    const ctx = this.renderer.getContext();
+    ctx.fillStyle = COLORS.GROUND_LINE;
+
+    for (const deco of this.decorations) {
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(deco.x, deco.y, deco.width, deco.height);
+    }
+    ctx.globalAlpha = 1;
   }
 
   private renderGround(): void {
@@ -106,6 +173,12 @@ export class Game {
     ctx.moveTo(0, groundY);
     ctx.lineTo(width, groundY);
     ctx.stroke();
+
+    // Ground marks (scrolling)
+    ctx.fillStyle = COLORS.GROUND_LINE;
+    for (const mark of this.groundMarks) {
+      ctx.fillRect(mark.x, groundY + 5, SCROLL.GROUND_MARK_WIDTH, 15);
+    }
   }
 
   private renderPlayer(): void {
