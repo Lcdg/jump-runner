@@ -6,7 +6,7 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 
 ## État Actuel
 
-**Epic 1 : Foundation & Core Game Loop** - En cours
+**Epic 1 : Foundation & Core Game Loop** - Terminé
 
 | Story | Titre | Status |
 |-------|-------|--------|
@@ -14,32 +14,25 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 1.2 | Game Loop & Canvas Rendering | Done |
 | 1.3 | Player Entity & Basic Jump | Done |
 | 1.4 | Variable Jump Height | Done |
-| 1.5 | Scrolling Background | **Ready for Review** |
+| 1.5 | Scrolling Background | Done |
+
+**Epic 2 : Obstacles & Collision** - En cours
+
+| Story | Titre | Status |
+|-------|-------|--------|
+| 2.1 | Obstacle Spawning & Movement | Done |
+| 2.2 | Collision Detection | À faire |
+| 2.3 | Progressive Difficulty | À faire |
 
 ## Prochaine Action
 
-### Story 1.4 : Variable Jump Height
+### Story 2.1 : Obstacle Spawning & Movement
 
-Story créée : `docs/stories/1.4.story.md`
-
-Pour implémenter :
-
-```
-/bmad-orchestrator
-```
-
-Puis :
-1. Taper `3` pour sélectionner l'agent Dev (James)
-2. Implémenter la Story 1.4
-
-### Contenu Story 1.4 (selon Epic 1)
-
-- Appui court sur Espace = petit saut
-- Appui prolongé = saut plus haut (jusqu'à un maximum)
-- Relâcher la touche coupe la montée
-- Hauteur maximale plafonnée
-- Transition fluide entre petit et grand saut
-- Tests unitaires et E2E
+- Créer classe `Obstacle` héritant de `Entity`
+- Spawner obstacles à droite de l'écran
+- Obstacles défilent avec le décor
+- Recycler/supprimer les obstacles sortis
+- Hauteurs variées (petits/grands obstacles)
 
 ## Architecture Clé
 

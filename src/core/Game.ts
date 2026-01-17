@@ -5,9 +5,10 @@
 
 import { Renderer } from '../rendering/Renderer';
 import { Player } from '../entities/Player';
+import { Obstacle } from '../entities/Obstacle';
 import { InputManager } from '../input/InputManager';
 import { InputAction, GroundMark, Decoration } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL } from '../config/constants';
+import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -25,12 +26,46 @@ export class Game {
   private groundMarks: GroundMark[] = [];
   private decorations: Decoration[] = [];
 
+  // Obstacles
+  private obstacles: Obstacle[] = [];
+  private spawnTimer: number = 0;
+  private nextSpawnTime: number = 0;
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
     this.inputManager = new InputManager();
     this.inputManager.attach((action) => this.handleInput(action));
     this.initScrollingElements();
+    this.nextSpawnTime = this.getRandomSpawnTime();
+  }
+
+  private getRandomSpawnTime(): number {
+    return (
+      OBSTACLE.MIN_SPAWN_INTERVAL +
+      Math.random() * (OBSTACLE.MAX_SPAWN_INTERVAL - OBSTACLE.MIN_SPAWN_INTERVAL)
+    );
+  }
+
+  private spawnObstacle(): void {
+    const width = this.renderer.getWidth();
+    const groundY = this.renderer.getGroundY();
+
+    const obsWidth =
+      OBSTACLE.MIN_WIDTH +
+      Math.random() * (OBSTACLE.MAX_WIDTH - OBSTACLE.MIN_WIDTH);
+    const obsHeight =
+      OBSTACLE.MIN_HEIGHT +
+      Math.random() * (OBSTACLE.MAX_HEIGHT - OBSTACLE.MIN_HEIGHT);
+
+    const obstacle = new Obstacle(
+      width + OBSTACLE.SPAWN_MARGIN,
+      groundY,
+      obsWidth,
+      obsHeight
+    );
+
+    this.obstacles.push(obstacle);
   }
 
   private initScrollingElements(): void {
@@ -104,6 +139,23 @@ export class Game {
     }
     this.player.update(deltaTime);
     this.updateScrolling(deltaTime);
+    this.updateObstacles(deltaTime);
+  }
+
+  private updateObstacles(deltaTime: number): void {
+    // Spawn timer
+    this.spawnTimer += deltaTime;
+    if (this.spawnTimer >= this.nextSpawnTime) {
+      this.spawnObstacle();
+      this.spawnTimer = 0;
+      this.nextSpawnTime = this.getRandomSpawnTime();
+    }
+
+    // Update obstacles and remove inactive ones
+    for (const obstacle of this.obstacles) {
+      obstacle.update(deltaTime);
+    }
+    this.obstacles = this.obstacles.filter((obs) => obs.isActive());
   }
 
   private updateScrolling(deltaTime: number): void {
@@ -138,10 +190,21 @@ export class Game {
     this.renderer.clear();
     this.renderDecorations();
     this.renderGround();
+    this.renderObstacles();
     this.renderPlayer();
 
     if (DEBUG.SHOW_FPS) {
       this.renderFps();
+    }
+  }
+
+  private renderObstacles(): void {
+    const ctx = this.renderer.getContext();
+    ctx.fillStyle = OBSTACLE.COLOR;
+
+    for (const obstacle of this.obstacles) {
+      const pos = obstacle.getPosition();
+      ctx.fillRect(pos.x, pos.y, obstacle.getWidth(), obstacle.getHeight());
     }
   }
 
@@ -220,5 +283,9 @@ export class Game {
 
   getPlayer(): Player {
     return this.player;
+  }
+
+  getObstacles(): Obstacle[] {
+    return this.obstacles;
   }
 }

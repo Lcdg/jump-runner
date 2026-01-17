@@ -51,3 +51,14 @@ export const SCROLL = {
   GROUND_MARK_GAP: 60,
   DECORATION_COUNT: 10,
 } as const;
+
+export const OBSTACLE = {
+  MIN_WIDTH: 30,
+  MAX_WIDTH: 50,
+  MIN_HEIGHT: 40,
+  MAX_HEIGHT: 90,
+  MIN_SPAWN_INTERVAL: 1.5,
+  MAX_SPAWN_INTERVAL: 3.0,
+  COLOR: '#ff4757',
+  SPAWN_MARGIN: 50,
+} as const;
