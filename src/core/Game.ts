@@ -7,8 +7,10 @@ import { Renderer } from '../rendering/Renderer';
 import { Player } from '../entities/Player';
 import { Obstacle } from '../entities/Obstacle';
 import { InputManager } from '../input/InputManager';
-import { InputAction, GroundMark, Decoration } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE } from '../config/constants';
+import { checkAABBCollision } from '../systems/CollisionSystem';
+import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
+import { InputAction, GroundMark, Decoration, CollisionCallback } from './types';
+import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -31,6 +33,14 @@ export class Game {
   private spawnTimer: number = 0;
   private nextSpawnTime: number = 0;
 
+  // Collision
+  private onCollision: CollisionCallback | null = null;
+  private isColliding: boolean = false;
+  private collisionFlashTimer: number = 0;
+
+  // Difficulty progression
+  private gameTime: number = 0;
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
@@ -41,10 +51,7 @@ export class Game {
   }
 
   private getRandomSpawnTime(): number {
-    return (
-      OBSTACLE.MIN_SPAWN_INTERVAL +
-      Math.random() * (OBSTACLE.MAX_SPAWN_INTERVAL - OBSTACLE.MIN_SPAWN_INTERVAL)
-    );
+    return getSpawnTime(this.gameTime);
   }
 
   private spawnObstacle(): void {
@@ -134,12 +141,51 @@ export class Game {
   }
 
   private update(deltaTime: number): void {
+    // Track game time for difficulty progression
+    this.gameTime += deltaTime;
+
     if (this.inputManager.isJumpHeld()) {
       this.player.holdJump(deltaTime);
     }
     this.player.update(deltaTime);
     this.updateScrolling(deltaTime);
     this.updateObstacles(deltaTime);
+    this.checkCollisions();
+    this.updateCollisionFlash(deltaTime);
+  }
+
+  private checkCollisions(): void {
+    const playerHitbox = this.player.getHitbox();
+
+    for (const obstacle of this.obstacles) {
+      const obstacleHitbox = obstacle.getHitbox();
+
+      if (checkAABBCollision(playerHitbox, obstacleHitbox)) {
+        this.isColliding = true;
+        this.collisionFlashTimer = COLLISION.FLASH_DURATION;
+
+        // eslint-disable-next-line no-console, no-undef
+        console.log('Collision detected!');
+
+        if (this.onCollision) {
+          this.onCollision({
+            type: 'collision',
+            playerHitbox,
+            obstacleHitbox,
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  private updateCollisionFlash(deltaTime: number): void {
+    if (this.collisionFlashTimer > 0) {
+      this.collisionFlashTimer -= deltaTime;
+      if (this.collisionFlashTimer <= 0) {
+        this.isColliding = false;
+      }
+    }
   }
 
   private updateObstacles(deltaTime: number): void {
@@ -248,8 +294,12 @@ export class Game {
     const ctx = this.renderer.getContext();
     const pos = this.player.getPosition();
 
+    // Use flash color if colliding
+    const bodyColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_BODY;
+    const headColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_HEAD;
+
     // Body (rectangle)
-    ctx.fillStyle = COLORS.PLAYER_BODY;
+    ctx.fillStyle = bodyColor;
     ctx.fillRect(
       pos.x,
       pos.y + PLAYER.HEAD_RADIUS,
@@ -258,7 +308,7 @@ export class Game {
     );
 
     // Head (circle)
-    ctx.fillStyle = COLORS.PLAYER_HEAD;
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.arc(
       pos.x + PLAYER.WIDTH / 2,
@@ -287,5 +337,21 @@ export class Game {
 
   getObstacles(): Obstacle[] {
     return this.obstacles;
+  }
+
+  setOnCollision(callback: CollisionCallback | null): void {
+    this.onCollision = callback;
+  }
+
+  getIsColliding(): boolean {
+    return this.isColliding;
+  }
+
+  getGameTime(): number {
+    return this.gameTime;
+  }
+
+  getCurrentDifficulty(): SpawnInterval {
+    return calculateSpawnInterval(this.gameTime);
   }
 }

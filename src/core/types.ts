@@ -36,3 +36,11 @@ export interface Decoration {
   width: number;
   height: number;
 }
+
+export interface CollisionEvent {
+  type: 'collision';
+  playerHitbox: Hitbox;
+  obstacleHitbox: Hitbox;
+}
+
+export type CollisionCallback = (event: CollisionEvent) => void;

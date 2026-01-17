@@ -16,17 +16,17 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 1.4 | Variable Jump Height | Done |
 | 1.5 | Scrolling Background | Done |
 
-**Epic 2 : Obstacles & Collision** - En cours
+**Epic 2 : Obstacles & Collision** - Terminé
 
 | Story | Titre | Status |
 |-------|-------|--------|
 | 2.1 | Obstacle Spawning & Movement | Done |
-| 2.2 | Collision Detection | **À faire** |
-| 2.3 | Progressive Difficulty | À faire |
+| 2.2 | Collision Detection | Done |
+| 2.3 | Progressive Difficulty | Done |
 
 ## Prochaine Action
 
-### Story 2.2 : Collision Detection
+### Epic 3 : Game States & Scoring
 
 Pour reprendre le travail :
 
@@ -35,18 +35,15 @@ Pour reprendre le travail :
 ```
 
 Puis :
-1. Taper `3` pour sélectionner l'agent Dev (James)
-2. Créer et implémenter la Story 2.2
+1. Utiliser `create-next-story` pour créer la Story 3.1
+2. `*agent dev` pour implémenter
 
-### Contenu attendu Story 2.2 (selon Epic 2)
+### Contenu attendu Epic 3 (voir docs/prd/epic-3-game-states-scoring.md)
 
-- Hitbox définie pour le personnage (déjà fait dans Player)
-- Hitbox définie pour chaque obstacle (déjà fait dans Obstacle)
-- Collision AABB quand les hitboxes se chevauchent
-- Événement "collision" émis (pour le système de game state)
-- Pour l'instant : indicateur visuel temporaire (flash rouge)
-- Tests unitaires exhaustifs pour la collision
-- Test E2E : vérifier collision quand le joueur ne saute pas
+- Game states: Attract → Playing → Game Over
+- Score qui augmente avec le temps de survie
+- High score persisté en localStorage
+- UI overlay pour afficher score et game over
 
 ## Architecture Clé
 
@@ -56,10 +53,11 @@ src/
 ├── config/         # constants.ts
 ├── entities/       # Entity.ts, Player.ts, Obstacle.ts
 ├── input/          # InputManager.ts
+├── systems/        # CollisionSystem.ts, DifficultySystem.ts
 └── rendering/      # Renderer.ts
 ```
 
-**70 tests unitaires passent actuellement.**
+**123 tests unitaires passent actuellement.**
 
 ## Commandes Utiles
 

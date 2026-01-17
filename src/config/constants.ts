@@ -62,3 +62,19 @@ export const OBSTACLE = {
   COLOR: '#ff4757',
   SPAWN_MARGIN: 50,
 } as const;
+
+export const COLLISION = {
+  FLASH_DURATION: 0.2,
+  FLASH_COLOR: '#ff0000',
+} as const;
+
+export const DIFFICULTY = {
+  // Initial (easy) spawn intervals in seconds
+  INITIAL_MIN_INTERVAL: 2.0,
+  INITIAL_MAX_INTERVAL: 3.5,
+  // Final (hard) spawn intervals in seconds
+  FINAL_MIN_INTERVAL: 0.8,
+  FINAL_MAX_INTERVAL: 1.5,
+  // Time to reach maximum difficulty in seconds
+  PLATEAU_TIME: 60,
+} as const;
