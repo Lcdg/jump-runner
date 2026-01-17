@@ -29,8 +29,10 @@ export const DEBUG = {
 
 export const PHYSICS = {
   GRAVITY: 1800,
-  JUMP_VELOCITY: -650,
-  MAX_JUMP_HOLD_TIME: 150,
+  MIN_JUMP_VELOCITY: -400,
+  MAX_JUMP_VELOCITY: -700,
+  JUMP_HOLD_FORCE: 2800,
+  MAX_JUMP_HOLD_TIME: 180,
 } as const;
 
 export const PLAYER = {

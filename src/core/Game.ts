@@ -67,10 +67,15 @@ export class Game {
   private handleInput(action: InputAction): void {
     if (action.type === 'jump_start') {
       this.player.jump();
+    } else if (action.type === 'jump_end') {
+      this.player.releaseJump();
     }
   }
 
   private update(deltaTime: number): void {
+    if (this.inputManager.isJumpHeld()) {
+      this.player.holdJump(deltaTime);
+    }
     this.player.update(deltaTime);
   }
 

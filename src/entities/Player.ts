@@ -12,6 +12,8 @@ export type PlayerState = 'idle' | 'jumping' | 'falling';
 export class Player extends Entity {
   private state: PlayerState = 'idle';
   private groundY: number;
+  private jumpHoldTime: number = 0;
+  private isHoldingJump: boolean = false;
 
   constructor(groundY: number) {
     const startX = 100;
@@ -45,9 +47,29 @@ export class Player extends Entity {
 
   jump(): void {
     if (this.state === 'idle') {
-      this.velocity.y = PHYSICS.JUMP_VELOCITY;
+      this.velocity.y = PHYSICS.MIN_JUMP_VELOCITY;
       this.state = 'jumping';
+      this.isHoldingJump = true;
+      this.jumpHoldTime = 0;
     }
+  }
+
+  holdJump(deltaTime: number): void {
+    if (this.state === 'jumping' && this.isHoldingJump) {
+      const holdTimeMs = this.jumpHoldTime * 1000;
+      if (holdTimeMs < PHYSICS.MAX_JUMP_HOLD_TIME) {
+        this.velocity.y -= PHYSICS.JUMP_HOLD_FORCE * deltaTime;
+        this.jumpHoldTime += deltaTime;
+
+        if (this.velocity.y < PHYSICS.MAX_JUMP_VELOCITY) {
+          this.velocity.y = PHYSICS.MAX_JUMP_VELOCITY;
+        }
+      }
+    }
+  }
+
+  releaseJump(): void {
+    this.isHoldingJump = false;
   }
 
   private land(): void {
@@ -70,5 +92,11 @@ export class Player extends Entity {
     this.velocity = { x: 0, y: 0 };
     this.state = 'idle';
     this.active = true;
+    this.jumpHoldTime = 0;
+    this.isHoldingJump = false;
+  }
+
+  isJumpHeld(): boolean {
+    return this.isHoldingJump;
   }
 }
