@@ -4,10 +4,15 @@
  */
 
 import { Renderer } from '../rendering/Renderer';
-import { DEBUG, COLORS } from '../config/constants';
+import { Player } from '../entities/Player';
+import { InputManager } from '../input/InputManager';
+import { InputAction } from './types';
+import { DEBUG, COLORS, PLAYER } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
+  private player: Player;
+  private inputManager: InputManager;
   private lastTime: number = 0;
   private isRunning: boolean = false;
 
@@ -18,6 +23,9 @@ export class Game {
 
   constructor() {
     this.renderer = new Renderer('game');
+    this.player = new Player(this.renderer.getGroundY());
+    this.inputManager = new InputManager();
+    this.inputManager.attach((action) => this.handleInput(action));
   }
 
   start(): void {
@@ -29,6 +37,7 @@ export class Game {
 
   stop(): void {
     this.isRunning = false;
+    this.inputManager.detach();
   }
 
   private gameLoop(currentTime: number): void {
@@ -55,18 +64,69 @@ export class Game {
     }
   }
 
+  private handleInput(action: InputAction): void {
+    if (action.type === 'jump_start') {
+      this.player.jump();
+    }
+  }
+
   private update(deltaTime: number): void {
-    // Game logic will be added here in future stories
-    // deltaTime is in seconds for frame-independent movement
-    void deltaTime;
+    this.player.update(deltaTime);
   }
 
   private render(): void {
     this.renderer.clear();
+    this.renderGround();
+    this.renderPlayer();
 
     if (DEBUG.SHOW_FPS) {
       this.renderFps();
     }
+  }
+
+  private renderGround(): void {
+    const ctx = this.renderer.getContext();
+    const groundY = this.renderer.getGroundY();
+    const width = this.renderer.getWidth();
+    const height = this.renderer.getHeight();
+
+    // Ground area
+    ctx.fillStyle = COLORS.GROUND;
+    ctx.fillRect(0, groundY, width, height - groundY);
+
+    // Ground line
+    ctx.strokeStyle = COLORS.GROUND_LINE;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(width, groundY);
+    ctx.stroke();
+  }
+
+  private renderPlayer(): void {
+    const ctx = this.renderer.getContext();
+    const pos = this.player.getPosition();
+
+    // Body (rectangle)
+    ctx.fillStyle = COLORS.PLAYER_BODY;
+    ctx.fillRect(
+      pos.x,
+      pos.y + PLAYER.HEAD_RADIUS,
+      PLAYER.WIDTH,
+      PLAYER.HEIGHT - PLAYER.HEAD_RADIUS
+    );
+
+    // Head (circle)
+    ctx.fillStyle = COLORS.PLAYER_HEAD;
+    ctx.beginPath();
+    ctx.arc(
+      pos.x + PLAYER.WIDTH / 2,
+      pos.y + PLAYER.HEAD_RADIUS,
+      PLAYER.HEAD_RADIUS,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
   }
 
   private renderFps(): void {
@@ -78,5 +138,9 @@ export class Game {
 
   getRenderer(): Renderer {
     return this.renderer;
+  }
+
+  getPlayer(): Player {
+    return this.player;
   }
 }

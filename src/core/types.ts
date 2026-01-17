@@ -19,10 +19,9 @@ export interface Dimensions {
 
 export interface Hitbox extends Position, Dimensions {}
 
-export interface Entity {
-  position: Position;
-  velocity: Velocity;
-  dimensions: Dimensions;
-}
-
 export type GameStateType = 'attract' | 'playing' | 'gameOver';
+
+export type InputAction =
+  | { type: 'jump_start' }
+  | { type: 'jump_end' }
+  | { type: 'start_game' };
