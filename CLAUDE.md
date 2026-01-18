@@ -4,7 +4,7 @@
 
 Mini-jeu de type endless runner en TypeScript/Canvas.
 
-## État Actuel - MVP Complet!
+## État Actuel - MVP Complet, Sprint 2 Planifié
 
 **Epic 1 : Foundation & Core Game Loop** - Terminé
 
@@ -34,14 +34,47 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 3.4 | Game Over Screen | Done |
 | 3.5 | Restart Flow | Done |
 
-## Fonctionnalités Implémentées
+**Epic 4 : Ville de Nuit - Polish Visuel** - À faire
 
-- **Attract Mode**: IA qui joue automatiquement, "Press Space to Start"
-- **Playing**: Contrôles de saut variable, score en temps réel
-- **Collision**: Détection AABB, transition vers Game Over
-- **Game Over**: Score final affiché, "Press Space to Restart"
-- **Difficulté Progressive**: Obstacles plus fréquents au fil du temps (plateau à 60s)
-- **Restart Fluide**: Reset complet instantané
+| Story | Titre | Status |
+|-------|-------|--------|
+| 4.1 | Palette Couleurs "Ville de Nuit" | À faire |
+| 4.2 | Décor - Immeubles Arrière-Plan | À faire |
+| 4.3 | Décor - Sol avec Passages Piétons | À faire |
+| 4.4 | Obstacles Sol - Poubelle, Cône, Voiture | À faire |
+| 4.5 | Personnage - Jambes + Animation Course | À faire |
+| 4.6 | Personnage - Animation Saut | À faire |
+
+**Epic 5 : Obstacles Aériens** - À faire
+
+| Story | Titre | Status |
+|-------|-------|--------|
+| 5.1 | Lampadaires (Obstacle Aérien) | À faire |
+| 5.2 | Autres Obstacles Aériens | À faire |
+| 5.3 | Validation des Patterns | À faire |
+
+## Prochaine Action
+
+### Commencer Epic 4 - Story 4.1
+
+Pour reprendre le travail :
+
+```
+/bmad-orchestrator
+```
+
+Puis :
+1. Taper `3` pour sélectionner l'agent Dev (James)
+2. Créer et implémenter la Story 4.1 (Palette Couleurs)
+
+### Référence Visuelle
+
+Le fichier `docs/front-end-spec.md` contient toutes les spécifications visuelles :
+- Palette de couleurs complète
+- Dimensions des obstacles (poubelle, cône, voiture)
+- Design du personnage (corps, tête, jambes)
+- Animations (course, saut, atterrissage)
+- Éléments de décor (immeubles, passages piétons, lampadaires)
 
 ## Architecture
 
@@ -69,20 +102,12 @@ npm run build    # Build production
 
 ## Documentation BMAD
 
-- `docs/prd/epic-1-foundation-core-game-loop.md` - Epic 1
-- `docs/prd/epic-2-obstacles-collision.md` - Epic 2
-- `docs/prd/epic-3-game-states-scoring.md` - Epic 3
-- `docs/stories/` - Toutes les stories complétées
+- `docs/prd/epic-list.md` - Liste des epics
+- `docs/prd/epic-4-night-city-visuals.md` - Epic 4 (Ville de Nuit)
+- `docs/prd/epic-5-aerial-obstacles.md` - Epic 5 (Obstacles Aériens)
+- `docs/front-end-spec.md` - Specs visuelles complètes
+- `docs/stories/` - Stories complétées
 
 ## CI/CD
 
 GitHub Actions déploie automatiquement sur GitHub Pages après chaque push sur main.
-
-## Prochaine Action (Optionnel)
-
-Le MVP est complet! Améliorations possibles:
-- High score persisté en localStorage
-- Sons et effets visuels
-- Mobile touch controls
-- Nouveaux types d'obstacles
-- Power-ups
