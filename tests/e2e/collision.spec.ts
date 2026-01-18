@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Collision Detection', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForTimeout(100);
-  });
-
-  test('collision should be detected when player does not jump', async ({ page }) => {
+  test('collision should be detected when player does not jump', async ({
+    page,
+  }) => {
     const consoleLogs: string[] = [];
 
-    // Listen for console.log messages
+    // Listen for console.log messages BEFORE navigating
     page.on('console', (msg) => {
       if (msg.type() === 'log') {
         consoleLogs.push(msg.text());
       }
     });
+
+    await page.goto('/');
+    await page.waitForTimeout(100);
 
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
@@ -27,7 +27,7 @@ test.describe('Collision Detection', () => {
     // First obstacle spawns between 1.5-3 seconds, then needs time to reach player
     // At 300px/s scroll speed and ~800px to travel, it takes ~2.7s to reach player
     // Total wait: max spawn time (3s) + travel time (~3s) = ~6s to be safe
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(8000);
 
     // Check that collision was logged
     const collisionDetected = consoleLogs.some((log) =>
@@ -37,11 +37,16 @@ test.describe('Collision Detection', () => {
     expect(collisionDetected).toBe(true);
   });
 
-  test('collision flash should be visible (visual indicator)', async ({ page }) => {
+  test('collision flash should be visible (visual indicator)', async ({
+    page,
+  }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => {
       errors.push(error.message);
     });
+
+    await page.goto('/');
+    await page.waitForTimeout(100);
 
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
@@ -51,7 +56,7 @@ test.describe('Collision Detection', () => {
     await page.waitForTimeout(100);
 
     // Wait for collision
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(8000);
 
     // If we got here without errors, the flash rendering works
     expect(errors).toHaveLength(0);
@@ -63,6 +68,9 @@ test.describe('Collision Detection', () => {
       errors.push(error.message);
     });
 
+    await page.goto('/');
+    await page.waitForTimeout(100);
+
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
 
@@ -71,7 +79,7 @@ test.describe('Collision Detection', () => {
     await page.waitForTimeout(100);
 
     // Wait for collision
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(8000);
 
     // Continue for a few more seconds to ensure game keeps running
     await page.waitForTimeout(3000);
