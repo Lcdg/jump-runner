@@ -89,6 +89,20 @@ export const SCROLL = {
   DECORATION_COUNT: 10,
 } as const;
 
+// Background buildings (parallax layer)
+export const BUILDINGS = {
+  COUNT: 6,
+  MIN_WIDTH: 80,
+  MAX_WIDTH: 150,
+  MIN_HEIGHT: 150,
+  MAX_HEIGHT: 350,
+  GAP: 30,
+  PARALLAX_SPEED: 0.4, // 40% of ground speed
+  WINDOW_SIZE: 8,
+  WINDOW_GAP: 20,
+  WINDOW_MARGIN: 15,
+} as const;
+
 export const OBSTACLE = {
   MIN_WIDTH: 30,
   MAX_WIDTH: 50,

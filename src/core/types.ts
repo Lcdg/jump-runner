@@ -37,6 +37,18 @@ export interface Decoration {
   height: number;
 }
 
+export interface BuildingWindow {
+  x: number; // Position relative to building
+  y: number;
+}
+
+export interface Building {
+  x: number;
+  width: number;
+  height: number;
+  windows: BuildingWindow[];
+}
+
 export interface CollisionEvent {
   type: 'collision';
   playerHitbox: Hitbox;

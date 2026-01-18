@@ -11,8 +11,8 @@ import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
-import { InputAction, GroundMark, Decoration, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
+import { InputAction, GroundMark, Decoration, Building, BuildingWindow, CollisionCallback, GameStateType } from './types';
+import { DEBUG, COLORS, PLAYER, SCROLL, BUILDINGS, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -29,6 +29,7 @@ export class Game {
   // Scrolling
   private groundMarks: GroundMark[] = [];
   private decorations: Decoration[] = [];
+  private buildings: Building[] = [];
 
   // Obstacles
   private obstacles: Obstacle[] = [];
@@ -58,6 +59,7 @@ export class Game {
     this.player = new Player(this.renderer.getGroundY());
     this.inputManager = new InputManager();
     this.inputManager.attach((action) => this.handleInput(action));
+    this.initBuildings();
     this.initScrollingElements();
     this.nextSpawnTime = this.getRandomSpawnTime();
 
@@ -122,6 +124,77 @@ export class Game {
     );
 
     this.obstacles.push(obstacle);
+  }
+
+  private initBuildings(): void {
+    const width = this.renderer.getWidth();
+    // Start buildings off-screen to the right
+    let currentX = width;
+
+    // Generate initial buildings
+    for (let i = 0; i < BUILDINGS.COUNT; i++) {
+      const building = this.generateBuilding(currentX);
+      this.buildings.push(building);
+      currentX += building.width + this.getRandomBuildingGap();
+    }
+  }
+
+  private getRandomBuildingGap(): number {
+    // 20% chance of a larger gap (2-4x normal gap)
+    if (Math.random() < 0.2) {
+      return BUILDINGS.GAP * (2 + Math.random() * 2);
+    }
+    return BUILDINGS.GAP;
+  }
+
+  private generateBuilding(x: number): Building {
+    const width = BUILDINGS.MIN_WIDTH + Math.random() * (BUILDINGS.MAX_WIDTH - BUILDINGS.MIN_WIDTH);
+    const height = BUILDINGS.MIN_HEIGHT + Math.random() * (BUILDINGS.MAX_HEIGHT - BUILDINGS.MIN_HEIGHT);
+
+    // Generate windows for this building
+    const windows: BuildingWindow[] = [];
+    const windowCols = Math.floor((width - BUILDINGS.WINDOW_MARGIN * 2) / BUILDINGS.WINDOW_GAP);
+    const windowRows = Math.floor((height - BUILDINGS.WINDOW_MARGIN * 2) / BUILDINGS.WINDOW_GAP);
+
+    for (let row = 0; row < windowRows; row++) {
+      for (let col = 0; col < windowCols; col++) {
+        // Randomly light some windows (about 60%)
+        if (Math.random() < 0.6) {
+          windows.push({
+            x: BUILDINGS.WINDOW_MARGIN + col * BUILDINGS.WINDOW_GAP,
+            y: BUILDINGS.WINDOW_MARGIN + row * BUILDINGS.WINDOW_GAP,
+          });
+        }
+      }
+    }
+
+    return {
+      x,
+      width,
+      height,
+      windows,
+    };
+  }
+
+  private updateBuildings(deltaTime: number): void {
+    const scrollAmount = SCROLL.SPEED * BUILDINGS.PARALLAX_SPEED * deltaTime;
+
+    for (const building of this.buildings) {
+      building.x -= scrollAmount;
+
+      // Recycle building when it goes off-screen left
+      if (building.x + building.width < 0) {
+        // Find the rightmost building
+        const maxX = Math.max(...this.buildings.map((b) => b.x + b.width));
+
+        // Generate new building properties with random gap
+        const newBuilding = this.generateBuilding(maxX + this.getRandomBuildingGap());
+        building.x = newBuilding.x;
+        building.width = newBuilding.width;
+        building.height = newBuilding.height;
+        building.windows = newBuilding.windows;
+      }
+    }
   }
 
   private initScrollingElements(): void {
@@ -202,7 +275,8 @@ export class Game {
   private update(deltaTime: number): void {
     const currentState = this.stateManager.getState();
 
-    // Scrolling always happens (attract, playing, gameOver)
+    // Scrolling and buildings always update (attract, playing, gameOver)
+    this.updateBuildings(deltaTime);
     this.updateScrolling(deltaTime);
 
     // Collision flash always updates
@@ -355,6 +429,7 @@ export class Game {
 
   private render(): void {
     this.renderer.clear();
+    this.renderBuildings();
     this.renderDecorations();
     this.renderGround();
     this.renderObstacles();
@@ -375,6 +450,29 @@ export class Game {
 
     if (DEBUG.SHOW_FPS) {
       this.renderFps();
+    }
+  }
+
+  private renderBuildings(): void {
+    const ctx = this.renderer.getContext();
+    const groundY = this.renderer.getGroundY();
+
+    for (const building of this.buildings) {
+      // Draw building silhouette
+      ctx.fillStyle = COLORS.BUILDING;
+      const buildingY = groundY - building.height;
+      ctx.fillRect(building.x, buildingY, building.width, building.height);
+
+      // Draw lit windows
+      ctx.fillStyle = COLORS.WINDOW;
+      for (const window of building.windows) {
+        ctx.fillRect(
+          building.x + window.x,
+          buildingY + window.y,
+          BUILDINGS.WINDOW_SIZE,
+          BUILDINGS.WINDOW_SIZE
+        );
+      }
     }
   }
 
