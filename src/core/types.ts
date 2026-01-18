@@ -30,6 +30,10 @@ export interface GroundMark {
   x: number;
 }
 
+export interface Crosswalk {
+  x: number;
+}
+
 export interface Decoration {
   x: number;
   y: number;

@@ -103,6 +103,16 @@ export const BUILDINGS = {
   WINDOW_MARGIN: 15,
 } as const;
 
+// Crosswalk (passage piéton)
+export const CROSSWALK = {
+  WIDTH: 60, // Total width of crosswalk
+  STRIPE_WIDTH: 8, // Width of each stripe
+  STRIPE_HEIGHT: 25, // Height of stripes (in ground area)
+  STRIPE_GAP: 8, // Gap between stripes
+  SPACING: 600, // Distance between crosswalks
+  COUNT: 3, // Number of crosswalks to maintain
+} as const;
+
 export const OBSTACLE = {
   MIN_WIDTH: 30,
   MAX_WIDTH: 50,

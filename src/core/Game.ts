@@ -11,8 +11,8 @@ import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
-import { InputAction, GroundMark, Decoration, Building, BuildingWindow, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, BUILDINGS, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
+import { InputAction, GroundMark, Decoration, Building, BuildingWindow, Crosswalk, CollisionCallback, GameStateType } from './types';
+import { DEBUG, COLORS, PLAYER, SCROLL, BUILDINGS, CROSSWALK, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -30,6 +30,7 @@ export class Game {
   private groundMarks: GroundMark[] = [];
   private decorations: Decoration[] = [];
   private buildings: Building[] = [];
+  private crosswalks: Crosswalk[] = [];
 
   // Obstacles
   private obstacles: Obstacle[] = [];
@@ -205,6 +206,11 @@ export class Game {
     const markCount = Math.ceil(width / SCROLL.GROUND_MARK_GAP) + 2;
     for (let i = 0; i < markCount; i++) {
       this.groundMarks.push({ x: i * SCROLL.GROUND_MARK_GAP });
+    }
+
+    // Initialize crosswalks
+    for (let i = 0; i < CROSSWALK.COUNT; i++) {
+      this.crosswalks.push({ x: i * CROSSWALK.SPACING });
     }
 
     // Initialize decorations
@@ -414,6 +420,16 @@ export class Game {
       }
     }
 
+    // Update crosswalks
+    for (const crosswalk of this.crosswalks) {
+      crosswalk.x -= scrollAmount;
+      if (crosswalk.x < -CROSSWALK.WIDTH) {
+        // Find the rightmost crosswalk and position after it
+        const maxX = Math.max(...this.crosswalks.map((c) => c.x));
+        crosswalk.x = maxX + CROSSWALK.SPACING;
+      }
+    }
+
     // Update decorations
     for (const deco of this.decorations) {
       deco.x -= scrollAmount;
@@ -507,7 +523,17 @@ export class Game {
     ctx.fillStyle = COLORS.GROUND;
     ctx.fillRect(0, groundY, width, height - groundY);
 
-    // Ground line
+    // Crosswalks (zebra crossing pattern)
+    ctx.fillStyle = COLORS.GROUND_LINE;
+    for (const crosswalk of this.crosswalks) {
+      const stripeCount = Math.floor(CROSSWALK.WIDTH / (CROSSWALK.STRIPE_WIDTH + CROSSWALK.STRIPE_GAP));
+      for (let i = 0; i < stripeCount; i++) {
+        const stripeX = crosswalk.x + i * (CROSSWALK.STRIPE_WIDTH + CROSSWALK.STRIPE_GAP);
+        ctx.fillRect(stripeX, groundY + 5, CROSSWALK.STRIPE_WIDTH, CROSSWALK.STRIPE_HEIGHT);
+      }
+    }
+
+    // Ground line (sidewalk edge)
     ctx.strokeStyle = COLORS.GROUND_LINE;
     ctx.lineWidth = 3;
     ctx.beginPath();
