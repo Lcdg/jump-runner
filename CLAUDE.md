@@ -4,7 +4,7 @@
 
 Mini-jeu de type endless runner en TypeScript/Canvas.
 
-## État Actuel
+## État Actuel - MVP Complet!
 
 **Epic 1 : Foundation & Core Game Loop** - Terminé
 
@@ -24,40 +24,38 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 2.2 | Collision Detection | Done |
 | 2.3 | Progressive Difficulty | Done |
 
-## Prochaine Action
+**Epic 3 : Game States & Scoring** - Terminé
 
-### Epic 3 : Game States & Scoring
+| Story | Titre | Status |
+|-------|-------|--------|
+| 3.1 | Game State Machine | Done |
+| 3.2 | Attract Mode with Auto-Play | Done |
+| 3.3 | Real-Time Scoring | Done |
+| 3.4 | Game Over Screen | Done |
+| 3.5 | Restart Flow | Done |
 
-Pour reprendre le travail :
+## Fonctionnalités Implémentées
 
-```
-/bmad-orchestrator
-```
+- **Attract Mode**: IA qui joue automatiquement, "Press Space to Start"
+- **Playing**: Contrôles de saut variable, score en temps réel
+- **Collision**: Détection AABB, transition vers Game Over
+- **Game Over**: Score final affiché, "Press Space to Restart"
+- **Difficulté Progressive**: Obstacles plus fréquents au fil du temps (plateau à 60s)
+- **Restart Fluide**: Reset complet instantané
 
-Puis :
-1. Utiliser `create-next-story` pour créer la Story 3.1
-2. `*agent dev` pour implémenter
-
-### Contenu attendu Epic 3 (voir docs/prd/epic-3-game-states-scoring.md)
-
-- Game states: Attract → Playing → Game Over
-- Score qui augmente avec le temps de survie
-- High score persisté en localStorage
-- UI overlay pour afficher score et game over
-
-## Architecture Clé
+## Architecture
 
 ```
 src/
-├── core/           # Game.ts, types.ts
+├── core/           # Game.ts, GameStateManager.ts, types.ts
 ├── config/         # constants.ts
 ├── entities/       # Entity.ts, Player.ts, Obstacle.ts
 ├── input/          # InputManager.ts
-├── systems/        # CollisionSystem.ts, DifficultySystem.ts
+├── systems/        # CollisionSystem.ts, DifficultySystem.ts, AutoPlayerSystem.ts
 └── rendering/      # Renderer.ts
 ```
 
-**123 tests unitaires passent actuellement.**
+**207 tests unitaires passent.**
 
 ## Commandes Utiles
 
@@ -65,7 +63,7 @@ src/
 npm run dev      # Serveur de dev (http://localhost:5173)
 npm run lint     # ESLint
 npm run test:run # Vitest (unit tests)
-npm run test:e2e # Playwright (E2E) - Note: nécessite libnspr4 sur WSL
+npm run test:e2e # Playwright (E2E)
 npm run build    # Build production
 ```
 
@@ -74,8 +72,17 @@ npm run build    # Build production
 - `docs/prd/epic-1-foundation-core-game-loop.md` - Epic 1
 - `docs/prd/epic-2-obstacles-collision.md` - Epic 2
 - `docs/prd/epic-3-game-states-scoring.md` - Epic 3
-- `docs/stories/` - Stories créées et complétées
+- `docs/stories/` - Toutes les stories complétées
 
 ## CI/CD
 
 GitHub Actions déploie automatiquement sur GitHub Pages après chaque push sur main.
+
+## Prochaine Action (Optionnel)
+
+Le MVP est complet! Améliorations possibles:
+- High score persisté en localStorage
+- Sons et effets visuels
+- Mobile touch controls
+- Nouveaux types d'obstacles
+- Power-ups
