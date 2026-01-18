@@ -84,6 +84,8 @@ export const AUTO_PLAYER = {
   JUMP_THRESHOLD: 150,
   // Small chance to miss a jump (for imperfection)
   MISS_CHANCE: 0.02,
+  // How long AI holds the jump button (seconds) for higher jumps
+  JUMP_HOLD_DURATION: 0.15,
 } as const;
 
 export const UI = {

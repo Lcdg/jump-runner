@@ -12,7 +12,7 @@ import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
 import { InputAction, GroundMark, Decoration, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI } from '../config/constants';
+import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI, AUTO_PLAYER } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -45,6 +45,9 @@ export class Game {
 
   // Game state
   private stateManager: GameStateManager;
+
+  // Auto-player state
+  private aiJumpHoldTimer: number = 0;
 
   constructor() {
     this.renderer = new Renderer('game');
@@ -86,6 +89,7 @@ export class Game {
     this.obstacles = [];
     this.isColliding = false;
     this.collisionFlashTimer = 0;
+    this.aiJumpHoldTimer = 0;
     this.player.reset(this.renderer.getGroundY());
   }
 
@@ -200,7 +204,7 @@ export class Game {
 
     if (currentState === 'attract') {
       // In attract: auto-player controls the character
-      this.updateAutoPlayer();
+      this.updateAutoPlayer(deltaTime);
       this.player.update(deltaTime);
       this.updateObstacles(deltaTime);
     } else if (currentState === 'playing') {
@@ -253,7 +257,14 @@ export class Game {
     }
   }
 
-  private updateAutoPlayer(): void {
+  private updateAutoPlayer(deltaTime: number): void {
+    // If AI is currently holding a jump, continue holding
+    if (this.aiJumpHoldTimer > 0) {
+      this.player.holdJump(deltaTime);
+      this.aiJumpHoldTimer -= deltaTime;
+      return;
+    }
+
     const pos = this.player.getPosition();
     const groundY = this.renderer.getGroundY();
 
@@ -274,6 +285,8 @@ export class Game {
 
     if (shouldAutoJump(input)) {
       this.player.jump();
+      // Start holding the jump for a duration to get a higher jump
+      this.aiJumpHoldTimer = AUTO_PLAYER.JUMP_HOLD_DURATION;
     }
   }
 
