@@ -12,7 +12,7 @@ import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
 import { InputAction, GroundMark, Decoration, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI, AUTO_PLAYER } from '../config/constants';
+import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -49,6 +49,10 @@ export class Game {
   // Auto-player state
   private aiJumpHoldTimer: number = 0;
 
+  // Score
+  private score: number = 0;
+  private finalScore: number = 0;
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
@@ -71,6 +75,7 @@ export class Game {
 
     this.stateManager.registerCallbacks('gameOver', {
       onEnter: () => {
+        this.finalScore = Math.floor(this.score);
         this.player.deactivate();
       },
     });
@@ -90,6 +95,7 @@ export class Game {
     this.isColliding = false;
     this.collisionFlashTimer = 0;
     this.aiJumpHoldTimer = 0;
+    this.score = 0;
     this.player.reset(this.renderer.getGroundY());
   }
 
@@ -210,6 +216,9 @@ export class Game {
     } else if (currentState === 'playing') {
       // Track game time for difficulty progression (only in playing)
       this.gameTime += deltaTime;
+
+      // Increment score
+      this.score += SCORE.POINTS_PER_SECOND * deltaTime;
 
       if (this.inputManager.isJumpHeld()) {
         this.player.holdJump(deltaTime);
@@ -353,9 +362,11 @@ export class Game {
       this.renderPlayer();
     }
 
-    // Render state-specific overlays
+    // Render state-specific overlays and UI
     if (this.stateManager.isState('attract')) {
       this.renderAttractOverlay();
+    } else if (this.stateManager.isState('playing')) {
+      this.renderScore();
     }
 
     if (DEBUG.SHOW_FPS) {
@@ -477,6 +488,35 @@ export class Game {
     ctx.textBaseline = 'alphabetic';
   }
 
+  private renderScore(): void {
+    const ctx = this.renderer.getContext();
+    const width = this.renderer.getWidth();
+
+    const displayScore = Math.floor(this.score);
+    const text = `Score: ${displayScore}`;
+
+    ctx.font = SCORE.FONT;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = SCORE.COLOR;
+
+    // Shadow for better readability
+    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+
+    ctx.fillText(text, width - SCORE.PADDING, SCORE.PADDING);
+
+    // Reset shadow and alignment
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
   getRenderer(): Renderer {
     return this.renderer;
   }
@@ -511,5 +551,13 @@ export class Game {
 
   getCurrentState(): GameStateType {
     return this.stateManager.getState();
+  }
+
+  getScore(): number {
+    return this.score;
+  }
+
+  getFinalScore(): number {
+    return this.finalScore;
   }
 }

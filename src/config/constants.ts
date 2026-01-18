@@ -94,3 +94,10 @@ export const UI = {
   OVERLAY_SHADOW_COLOR: 'rgba(0, 0, 0, 0.5)',
   OVERLAY_SHADOW_BLUR: 4,
 } as const;
+
+export const SCORE = {
+  POINTS_PER_SECOND: 10,
+  FONT: '24px Arial',
+  COLOR: '#ffffff',
+  PADDING: 20,
+} as const;

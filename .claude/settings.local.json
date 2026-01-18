@@ -6,7 +6,20 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Skill(BMad:agents:pm)",
-      "Skill(BMad:agents:architect)"
+      "Skill(BMad:agents:architect)",
+      "Skill(BMad:agents:bmad-orchestrator)",
+      "Bash(echo:*)",
+      "Bash(curl:*)",
+      "Bash(bash)",
+      "Bash(export NVM_DIR=\"$HOME/.nvm\")",
+      "Bash([ -s \"$NVM_DIR/nvm.sh\" ])",
+      "Bash(. \"$NVM_DIR/nvm.sh\")",
+      "Bash(npm run lint)",
+      "Bash(npm run test:run:*)",
+      "Bash(npm run build:*)",
+      "Bash(git commit:*)",
+      "Bash(source:*)",
+      "Bash(git add:*)"
     ]
   }
 }
