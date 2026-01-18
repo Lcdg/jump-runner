@@ -19,7 +19,12 @@
       "Bash(npm run build:*)",
       "Bash(git commit:*)",
       "Bash(source:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(/home/lcdg/.local/share/nvm/v22.16.0/bin/npm run lint)",
+      "Bash(/home/lcdg/.local/share/nvm/v22.16.0/bin/npm run test:run)",
+      "Bash(export PATH=\"/home/lcdg/.nvm/versions/node/v20.20.0/bin:$PATH\")",
+      "Bash(gh run:*)",
+      "Bash(npm run test:e2e:*)"
     ]
   }
 }

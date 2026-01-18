@@ -239,6 +239,8 @@ export class Game {
       const obstacleHitbox = obstacle.getHitbox();
 
       if (checkAABBCollision(playerHitbox, obstacleHitbox)) {
+        // eslint-disable-next-line no-console, no-undef
+        console.log('Collision detected');
         this.isColliding = true;
         this.collisionFlashTimer = COLLISION.FLASH_DURATION;
 
