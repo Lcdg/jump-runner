@@ -9,9 +9,10 @@ import { Obstacle } from '../entities/Obstacle';
 import { InputManager } from '../input/InputManager';
 import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
+import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
 import { InputAction, GroundMark, Decoration, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION } from '../config/constants';
+import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION, UI } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -198,7 +199,9 @@ export class Game {
     this.updateCollisionFlash(deltaTime);
 
     if (currentState === 'attract') {
-      // In attract: obstacles spawn and move, but player is static
+      // In attract: auto-player controls the character
+      this.updateAutoPlayer();
+      this.player.update(deltaTime);
       this.updateObstacles(deltaTime);
     } else if (currentState === 'playing') {
       // Track game time for difficulty progression (only in playing)
@@ -247,6 +250,30 @@ export class Game {
       if (this.collisionFlashTimer <= 0) {
         this.isColliding = false;
       }
+    }
+  }
+
+  private updateAutoPlayer(): void {
+    const pos = this.player.getPosition();
+    const groundY = this.renderer.getGroundY();
+
+    const input: AutoPlayerInput = {
+      playerX: pos.x,
+      playerY: pos.y,
+      playerWidth: PLAYER.WIDTH,
+      playerHeight: PLAYER.HEIGHT,
+      groundY: groundY,
+      isOnGround: this.player.getState() === 'idle',
+      obstacles: this.obstacles.map((obs) => ({
+        x: obs.getPosition().x,
+        y: obs.getPosition().y,
+        width: obs.getWidth(),
+        height: obs.getHeight(),
+      })),
+    };
+
+    if (shouldAutoJump(input)) {
+      this.player.jump();
     }
   }
 
@@ -311,6 +338,11 @@ export class Game {
     // Only render player when not in gameOver state
     if (!this.stateManager.isState('gameOver')) {
       this.renderPlayer();
+    }
+
+    // Render state-specific overlays
+    if (this.stateManager.isState('attract')) {
+      this.renderAttractOverlay();
     }
 
     if (DEBUG.SHOW_FPS) {
@@ -399,6 +431,37 @@ export class Game {
     ctx.fillStyle = COLORS.FPS_TEXT;
     ctx.font = '14px monospace';
     ctx.fillText(`FPS: ${this.currentFps}`, 10, 20);
+  }
+
+  private renderAttractOverlay(): void {
+    const ctx = this.renderer.getContext();
+    const width = this.renderer.getWidth();
+    const height = this.renderer.getHeight();
+
+    const text = 'Press Space to Start';
+
+    ctx.font = UI.OVERLAY_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Shadow for better readability
+    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
+    ctx.shadowBlur = UI.OVERLAY_SHADOW_BLUR;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.fillStyle = UI.OVERLAY_COLOR;
+    ctx.fillText(text, width / 2, height / 2);
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Reset alignment
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   getRenderer(): Renderer {

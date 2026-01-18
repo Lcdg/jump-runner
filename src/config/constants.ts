@@ -78,3 +78,17 @@ export const DIFFICULTY = {
   // Time to reach maximum difficulty in seconds
   PLATEAU_TIME: 60,
 } as const;
+
+export const AUTO_PLAYER = {
+  // Distance (pixels) at which AI decides to jump
+  JUMP_THRESHOLD: 150,
+  // Small chance to miss a jump (for imperfection)
+  MISS_CHANCE: 0.02,
+} as const;
+
+export const UI = {
+  OVERLAY_FONT: '32px Arial',
+  OVERLAY_COLOR: '#ffffff',
+  OVERLAY_SHADOW_COLOR: 'rgba(0, 0, 0, 0.5)',
+  OVERLAY_SHADOW_BLUR: 4,
+} as const;
