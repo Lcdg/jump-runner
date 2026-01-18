@@ -9,7 +9,8 @@ import { Obstacle } from '../entities/Obstacle';
 import { InputManager } from '../input/InputManager';
 import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
-import { InputAction, GroundMark, Decoration, CollisionCallback } from './types';
+import { GameStateManager } from './GameStateManager';
+import { InputAction, GroundMark, Decoration, CollisionCallback, GameStateType } from './types';
 import { DEBUG, COLORS, PLAYER, SCROLL, OBSTACLE, COLLISION } from '../config/constants';
 
 export class Game {
@@ -41,6 +42,9 @@ export class Game {
   // Difficulty progression
   private gameTime: number = 0;
 
+  // Game state
+  private stateManager: GameStateManager;
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
@@ -48,6 +52,40 @@ export class Game {
     this.inputManager.attach((action) => this.handleInput(action));
     this.initScrollingElements();
     this.nextSpawnTime = this.getRandomSpawnTime();
+
+    // Initialize state manager
+    this.stateManager = new GameStateManager();
+    this.setupStateCallbacks();
+  }
+
+  private setupStateCallbacks(): void {
+    this.stateManager.registerCallbacks('playing', {
+      onEnter: () => {
+        this.resetGameplay();
+      },
+    });
+
+    this.stateManager.registerCallbacks('gameOver', {
+      onEnter: () => {
+        this.player.deactivate();
+      },
+    });
+
+    this.stateManager.registerCallbacks('attract', {
+      onEnter: () => {
+        this.resetGameplay();
+      },
+    });
+  }
+
+  private resetGameplay(): void {
+    this.gameTime = 0;
+    this.spawnTimer = 0;
+    this.nextSpawnTime = this.getRandomSpawnTime();
+    this.obstacles = [];
+    this.isColliding = false;
+    this.collisionFlashTimer = 0;
+    this.player.reset(this.renderer.getGroundY());
   }
 
   private getRandomSpawnTime(): number {
@@ -133,25 +171,49 @@ export class Game {
   }
 
   private handleInput(action: InputAction): void {
+    const currentState = this.stateManager.getState();
+
     if (action.type === 'jump_start') {
-      this.player.jump();
+      if (currentState === 'attract') {
+        this.stateManager.transition('playing');
+      } else if (currentState === 'gameOver') {
+        this.stateManager.transition('attract');
+      } else if (currentState === 'playing') {
+        this.player.jump();
+      }
     } else if (action.type === 'jump_end') {
-      this.player.releaseJump();
+      if (currentState === 'playing') {
+        this.player.releaseJump();
+      }
     }
   }
 
   private update(deltaTime: number): void {
-    // Track game time for difficulty progression
-    this.gameTime += deltaTime;
+    const currentState = this.stateManager.getState();
 
-    if (this.inputManager.isJumpHeld()) {
-      this.player.holdJump(deltaTime);
-    }
-    this.player.update(deltaTime);
+    // Scrolling always happens (attract, playing, gameOver)
     this.updateScrolling(deltaTime);
-    this.updateObstacles(deltaTime);
-    this.checkCollisions();
+
+    // Collision flash always updates
     this.updateCollisionFlash(deltaTime);
+
+    if (currentState === 'attract') {
+      // In attract: obstacles spawn and move, but player is static
+      this.updateObstacles(deltaTime);
+    } else if (currentState === 'playing') {
+      // Track game time for difficulty progression (only in playing)
+      this.gameTime += deltaTime;
+
+      if (this.inputManager.isJumpHeld()) {
+        this.player.holdJump(deltaTime);
+      }
+      this.player.update(deltaTime);
+      this.updateObstacles(deltaTime);
+      this.checkCollisions();
+    } else if (currentState === 'gameOver') {
+      // In gameOver: obstacles move but don't spawn
+      this.updateObstaclesNoSpawn(deltaTime);
+    }
   }
 
   private checkCollisions(): void {
@@ -164,9 +226,6 @@ export class Game {
         this.isColliding = true;
         this.collisionFlashTimer = COLLISION.FLASH_DURATION;
 
-        // eslint-disable-next-line no-console, no-undef
-        console.log('Collision detected!');
-
         if (this.onCollision) {
           this.onCollision({
             type: 'collision',
@@ -174,6 +233,9 @@ export class Game {
             obstacleHitbox,
           });
         }
+
+        // Transition to gameOver state
+        this.stateManager.transition('gameOver');
         break;
       }
     }
@@ -198,6 +260,14 @@ export class Game {
     }
 
     // Update obstacles and remove inactive ones
+    for (const obstacle of this.obstacles) {
+      obstacle.update(deltaTime);
+    }
+    this.obstacles = this.obstacles.filter((obs) => obs.isActive());
+  }
+
+  private updateObstaclesNoSpawn(deltaTime: number): void {
+    // Update obstacles without spawning new ones (for gameOver state)
     for (const obstacle of this.obstacles) {
       obstacle.update(deltaTime);
     }
@@ -237,7 +307,11 @@ export class Game {
     this.renderDecorations();
     this.renderGround();
     this.renderObstacles();
-    this.renderPlayer();
+
+    // Only render player when not in gameOver state
+    if (!this.stateManager.isState('gameOver')) {
+      this.renderPlayer();
+    }
 
     if (DEBUG.SHOW_FPS) {
       this.renderFps();
@@ -353,5 +427,13 @@ export class Game {
 
   getCurrentDifficulty(): SpawnInterval {
     return calculateSpawnInterval(this.gameTime);
+  }
+
+  getStateManager(): GameStateManager {
+    return this.stateManager;
+  }
+
+  getCurrentState(): GameStateType {
+    return this.stateManager.getState();
   }
 }
