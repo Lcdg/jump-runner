@@ -367,6 +367,8 @@ export class Game {
       this.renderAttractOverlay();
     } else if (this.stateManager.isState('playing')) {
       this.renderScore();
+    } else if (this.stateManager.isState('gameOver')) {
+      this.renderGameOverOverlay();
     }
 
     if (DEBUG.SHOW_FPS) {
@@ -507,6 +509,43 @@ export class Game {
     ctx.shadowOffsetY = 1;
 
     ctx.fillText(text, width - SCORE.PADDING, SCORE.PADDING);
+
+    // Reset shadow and alignment
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  private renderGameOverOverlay(): void {
+    const ctx = this.renderer.getContext();
+    const width = this.renderer.getWidth();
+    const height = this.renderer.getHeight();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Shadow for better readability
+    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
+    ctx.shadowBlur = UI.OVERLAY_SHADOW_BLUR;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    // "Game Over" title
+    ctx.font = UI.OVERLAY_FONT;
+    ctx.fillStyle = '#ff4757';
+    ctx.fillText('Game Over', width / 2, height / 2 - 50);
+
+    // Final score
+    ctx.font = SCORE.FONT;
+    ctx.fillStyle = UI.OVERLAY_COLOR;
+    ctx.fillText(`Score: ${this.finalScore}`, width / 2, height / 2);
+
+    // Restart message
+    ctx.font = '20px Arial';
+    ctx.fillText('Press Space to Restart', width / 2, height / 2 + 50);
 
     // Reset shadow and alignment
     ctx.shadowColor = 'transparent';
