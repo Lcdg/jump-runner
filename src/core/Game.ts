@@ -537,7 +537,7 @@ export class Game {
 
     // "Game Over" title
     ctx.font = UI.OVERLAY_FONT;
-    ctx.fillStyle = '#ff4757';
+    ctx.fillStyle = COLORS.GAME_OVER;
     ctx.fillText('Game Over', width / 2, height / 2 - 50);
 
     // Final score

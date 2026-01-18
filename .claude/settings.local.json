@@ -24,7 +24,9 @@
       "Bash(/home/lcdg/.local/share/nvm/v22.16.0/bin/npm run test:run)",
       "Bash(export PATH=\"/home/lcdg/.nvm/versions/node/v20.20.0/bin:$PATH\")",
       "Bash(gh run:*)",
-      "Bash(npm run test:e2e:*)"
+      "Bash(npm run test:e2e:*)",
+      "Bash(npx playwright install-deps chromium)",
+      "Bash(git restore:*)"
     ]
   }
 }

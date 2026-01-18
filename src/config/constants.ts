@@ -9,18 +9,55 @@ export const GAME = {
 } as const;
 
 export const CANVAS = {
-  BACKGROUND_COLOR: '#1a1a2e',
-  GROUND_Y_PERCENT: 0.8,
-  PLAYER_X_PERCENT: 0.15,
+  BACKGROUND_COLOR: '#0D1B2A',
+  GROUND_Y_PERCENT: 0.85, // Adjusted per front-end-spec (85%)
+  PLAYER_X_PERCENT: 0.2, // Adjusted per front-end-spec (20%)
 } as const;
 
+// Night City Theme Colors (from front-end-spec.md)
 export const COLORS = {
-  SKY: '#1a1a2e',
-  GROUND: '#16213e',
-  GROUND_LINE: '#0f3460',
+  // Background
+  SKY: '#0D1B2A', // Bleu nuit profond
+  BUILDING: '#1B263B', // Gris anthracite (immeubles)
+  WINDOW: '#FFD60A', // Jaune chaud (fenêtres éclairées)
+
+  // Ground
+  GROUND: '#415A77', // Gris béton (trottoir)
+  GROUND_LINE: '#E0E1DD', // Blanc cassé (passages piétons)
+
+  // Player
+  PLAYER_BODY: '#FF6B35', // Orange vif
+  PLAYER_HEAD: '#FF8C42', // Orange clair
+
+  // UI
   FPS_TEXT: '#ffffff',
-  PLAYER_BODY: '#e94560',
-  PLAYER_HEAD: '#ff6b6b',
+  SCORE: '#FFFFFF', // Blanc pur
+  OVERLAY_BG: '#000000CC', // Noir 80% opacité
+  GAME_OVER: '#E63946', // Rouge erreur
+
+  // Decorations
+  STREETLIGHT_POLE: '#415A77',
+  STREETLIGHT_HALO: '#FFF3B0', // Jaune doux
+} as const;
+
+// Obstacle Colors (from front-end-spec.md)
+export const OBSTACLE_COLORS = {
+  // Current default (will be replaced by specific types)
+  DEFAULT: '#9B2335',
+
+  // Ground obstacles
+  TRASH_CAN: '#386641', // Vert foncé
+  TRASH_CAN_LID: '#2D4A30',
+  CONE: '#FF9F1C', // Orange signalisation
+  CONE_STRIPES: '#FFFFFF',
+  BENCH: '#5C4033', // Bois
+  BOLLARD: '#778DA9', // Gris
+
+  // Car
+  CAR_RED: '#9B2335', // Rouge brique
+  CAR_BLUE: '#3D5A80', // Bleu acier
+  CAR_WHEELS: '#1B1B1B', // Noir
+  CAR_HEADLIGHTS: '#FFEA00', // Jaune vif
 } as const;
 
 export const DEBUG = {
@@ -59,7 +96,7 @@ export const OBSTACLE = {
   MAX_HEIGHT: 90,
   MIN_SPAWN_INTERVAL: 1.5,
   MAX_SPAWN_INTERVAL: 3.0,
-  COLOR: '#ff4757',
+  COLOR: '#9B2335', // Rouge brique (default, from OBSTACLE_COLORS)
   SPAWN_MARGIN: 50,
 } as const;
 
