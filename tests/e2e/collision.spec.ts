@@ -19,6 +19,10 @@ test.describe('Collision Detection', () => {
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
 
+    // Press Space to start the game (transition from attract to playing)
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+
     // Do NOT jump - wait for obstacles to come and collide with player
     // First obstacle spawns between 1.5-3 seconds, then needs time to reach player
     // At 300px/s scroll speed and ~800px to travel, it takes ~2.7s to reach player
@@ -42,6 +46,10 @@ test.describe('Collision Detection', () => {
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
 
+    // Press Space to start the game
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+
     // Wait for collision
     await page.waitForTimeout(6000);
 
@@ -57,6 +65,10 @@ test.describe('Collision Detection', () => {
 
     const canvas = page.locator('#game');
     await expect(canvas).toBeVisible();
+
+    // Press Space to start the game
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
 
     // Wait for collision
     await page.waitForTimeout(6000);
