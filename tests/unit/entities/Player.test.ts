@@ -2,6 +2,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Player } from '../../../src/entities/Player';
 import { PHYSICS, PLAYER } from '../../../src/config/constants';
 
+// Helper to make player land after a jump
+function makePlayerLand(player: Player): void {
+  player.jump();
+  for (let i = 0; i < 200; i++) {
+    player.update(0.016);
+    if (player.getState() === 'landing' || player.getState() === 'idle') break;
+  }
+}
+
 describe('Player', () => {
   const GROUND_Y = 500;
   let player: Player;
@@ -285,6 +294,106 @@ describe('Player', () => {
 
       player.releaseJump();
       expect(player.isJumpHeld()).toBe(false);
+    });
+  });
+
+  describe('run animation', () => {
+    it('should return 0 phase initially', () => {
+      expect(player.getRunAnimationPhase()).toBe(0);
+    });
+
+    it('should increase phase over time when idle', () => {
+      player.update(0.05); // 50ms
+      const phase = player.getRunAnimationPhase();
+      expect(phase).toBeGreaterThan(0);
+      expect(phase).toBeLessThan(1);
+    });
+
+    it('should cycle phase between 0 and 1', () => {
+      // Update for a full cycle (200ms)
+      player.update(0.2);
+      const phase = player.getRunAnimationPhase();
+      // Should be back near 0 after a full cycle
+      expect(phase).toBeCloseTo(0, 1);
+    });
+
+    it('should return 0 when jumping', () => {
+      player.update(0.1); // Build up some animation
+      expect(player.getRunAnimationPhase()).toBeGreaterThan(0);
+
+      player.jump();
+      expect(player.getRunAnimationPhase()).toBe(0);
+    });
+
+    it('should return 0 when falling', () => {
+      player.jump();
+      // Update until falling
+      for (let i = 0; i < 50; i++) {
+        player.update(0.016);
+        if (player.getState() === 'falling') break;
+      }
+      expect(player.getState()).toBe('falling');
+      expect(player.getRunAnimationPhase()).toBe(0);
+    });
+
+    it('should reset animation timer on reset()', () => {
+      player.update(0.1);
+      expect(player.getRunAnimationPhase()).toBeGreaterThan(0);
+
+      player.reset(GROUND_Y);
+      expect(player.getRunAnimationPhase()).toBe(0);
+    });
+  });
+
+  describe('landing state and squash', () => {
+    it('should transition to landing state when touching ground', () => {
+      player.jump();
+      // Update until landing
+      for (let i = 0; i < 200; i++) {
+        player.update(0.016);
+        if (player.getState() === 'landing') break;
+      }
+      expect(player.getState()).toBe('landing');
+    });
+
+    it('should transition from landing to idle after squash duration', () => {
+      makePlayerLand(player);
+      if (player.getState() === 'landing') {
+        // Update past squash duration
+        player.update(PLAYER.SQUASH_DURATION + 0.01);
+        expect(player.getState()).toBe('idle');
+      }
+    });
+
+    it('should return squash factor during landing', () => {
+      makePlayerLand(player);
+      if (player.getState() === 'landing') {
+        const squash = player.getSquashFactor();
+        expect(squash.scaleY).toBeLessThan(1);
+        expect(squash.scaleX).toBeGreaterThan(1);
+      }
+    });
+
+    it('should return normal scale when not landing', () => {
+      const squash = player.getSquashFactor();
+      expect(squash.scaleX).toBe(1);
+      expect(squash.scaleY).toBe(1);
+    });
+
+    it('should allow jump from landing state', () => {
+      makePlayerLand(player);
+      if (player.getState() === 'landing') {
+        player.jump();
+        expect(player.getState()).toBe('jumping');
+      }
+    });
+
+    it('should reset squash timer on reset()', () => {
+      makePlayerLand(player);
+      player.reset(GROUND_Y);
+      const squash = player.getSquashFactor();
+      expect(squash.scaleX).toBe(1);
+      expect(squash.scaleY).toBe(1);
     });
   });
 });

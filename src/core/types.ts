@@ -21,6 +21,10 @@ export interface Hitbox extends Position, Dimensions {}
 
 export type GameStateType = 'attract' | 'playing' | 'gameOver';
 
+export type ObstacleType = 'trashCan' | 'cone' | 'car' | 'streetlight' | 'sign' | 'shopSign';
+
+export type ObstacleCategory = 'ground' | 'aerial';
+
 export type InputAction =
   | { type: 'jump_start' }
   | { type: 'jump_end' }
@@ -34,11 +38,10 @@ export interface Crosswalk {
   x: number;
 }
 
-export interface Decoration {
+export interface Tree {
   x: number;
-  y: number;
-  width: number;
-  height: number;
+  trunkWidth: number;
+  trunkHeight: number;
 }
 
 export interface BuildingWindow {

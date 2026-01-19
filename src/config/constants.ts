@@ -38,6 +38,10 @@ export const COLORS = {
   // Decorations
   STREETLIGHT_POLE: '#415A77',
   STREETLIGHT_HALO: '#FFF3B0', // Jaune doux
+
+  // Trees (background decoration)
+  TREE_TRUNK: '#3D2817', // Brun foncé
+  TREE_FOLIAGE: '#2D4A3E', // Vert foncé (nuit)
 } as const;
 
 // Obstacle Colors (from front-end-spec.md)
@@ -58,6 +62,21 @@ export const OBSTACLE_COLORS = {
   CAR_BLUE: '#3D5A80', // Bleu acier
   CAR_WHEELS: '#1B1B1B', // Noir
   CAR_HEADLIGHTS: '#FFEA00', // Jaune vif
+
+  // Streetlight
+  STREETLIGHT_POLE: '#415A77', // Gris
+  STREETLIGHT_LAMP: '#778DA9', // Gris clair
+  STREETLIGHT_HALO: '#FFF3B0', // Jaune doux (from COLORS)
+
+  // Sign (panneau de signalisation)
+  SIGN_POLE: '#415A77', // Gris
+  SIGN_PANEL: '#1D3557', // Bleu foncé
+  SIGN_BORDER: '#E0E1DD', // Blanc cassé
+
+  // Shop Sign (enseigne de magasin)
+  SHOP_SIGN_SUPPORT: '#415A77', // Gris
+  SHOP_SIGN_PANEL: '#E63946', // Rouge
+  SHOP_SIGN_GLOW: '#FFD60A', // Jaune lumineux
 } as const;
 
 export const DEBUG = {
@@ -80,13 +99,36 @@ export const PLAYER = {
   HITBOX_OFFSET_Y: 0,
   HITBOX_WIDTH: 30,
   HITBOX_HEIGHT: 60,
+  // Legs
+  LEG_WIDTH: 6,
+  LEG_HEIGHT: 20,
+  LEG_GAP: 8, // Gap between legs
+  LEG_AMPLITUDE: 6, // Forward/backward movement amplitude
+  // Animation
+  RUN_CYCLE_DURATION: 0.2, // 200ms in seconds
+  // Landing squash
+  SQUASH_DURATION: 0.05, // 50ms
+  SQUASH_SCALE_Y: 0.8, // Vertical compression
+  SQUASH_SCALE_X: 1.2, // Horizontal stretch
 } as const;
 
 export const SCROLL = {
   SPEED: 300,
   GROUND_MARK_WIDTH: 3,
   GROUND_MARK_GAP: 60,
-  DECORATION_COUNT: 10,
+} as const;
+
+// Background trees (decorative, no collision)
+export const TREES = {
+  COUNT: 4,
+  MIN_TRUNK_WIDTH: 8,
+  MAX_TRUNK_WIDTH: 15,
+  MIN_TRUNK_HEIGHT: 40,
+  MAX_TRUNK_HEIGHT: 80,
+  FOLIAGE_RATIO: 1.8, // Foliage width = trunk width * ratio
+  FOLIAGE_HEIGHT_RATIO: 1.2, // Foliage height relative to trunk height
+  PARALLAX_SPEED: 0.6, // 60% of ground speed (between buildings and ground)
+  MIN_SPACING: 200,
 } as const;
 
 // Background buildings (parallax layer)
@@ -103,12 +145,13 @@ export const BUILDINGS = {
   WINDOW_MARGIN: 15,
 } as const;
 
-// Crosswalk (passage piéton)
+// Crosswalk (passage piéton) - vertical stripes
 export const CROSSWALK = {
-  WIDTH: 60, // Total width of crosswalk
-  STRIPE_WIDTH: 8, // Width of each stripe
-  STRIPE_HEIGHT: 25, // Height of stripes (in ground area)
-  STRIPE_GAP: 8, // Gap between stripes
+  WIDTH: 80, // Total width of crosswalk
+  STRIPE_WIDTH: 60, // Width of each stripe (horizontal extent)
+  STRIPE_HEIGHT: 6, // Height of each stripe
+  STRIPE_GAP: 5, // Gap between stripes
+  STRIPE_COUNT: 5, // Number of stripes (5-7)
   SPACING: 600, // Distance between crosswalks
   COUNT: 3, // Number of crosswalks to maintain
 } as const;
@@ -124,9 +167,66 @@ export const OBSTACLE = {
   SPAWN_MARGIN: 50,
 } as const;
 
+// Obstacle types with specific dimensions
+// Ground: 70% total, Aerial: 30% total
+export const OBSTACLE_TYPES = {
+  trashCan: {
+    width: 30,
+    height: 50,
+    weight: 0.28, // 28% spawn chance
+    category: 'ground' as const,
+  },
+  cone: {
+    width: 25,
+    height: 40,
+    weight: 0.28, // 28% spawn chance
+    category: 'ground' as const,
+  },
+  car: {
+    width: 100,
+    height: 45,
+    weight: 0.14, // 14% spawn chance
+    category: 'ground' as const,
+  },
+  streetlight: {
+    width: 15, // Pole width
+    height: 120, // Total height
+    hitboxHeight: 25, // Only top part has collision
+    hitboxWidth: 40, // Width of the lamp part
+    weight: 0.1, // 10% spawn chance
+    category: 'aerial' as const,
+  },
+  sign: {
+    width: 10, // Pole width
+    height: 100, // Total height
+    hitboxHeight: 35, // Sign part only
+    hitboxWidth: 50, // Sign width
+    weight: 0.1, // 10% spawn chance
+    category: 'aerial' as const,
+  },
+  shopSign: {
+    width: 8, // Support width
+    height: 90, // Total height
+    hitboxHeight: 30, // Sign part only
+    hitboxWidth: 60, // Sign width
+    weight: 0.1, // 10% spawn chance
+    category: 'aerial' as const,
+  },
+} as const;
+
 export const COLLISION = {
   FLASH_DURATION: 0.2,
   FLASH_COLOR: '#ff0000',
+} as const;
+
+// Spawn rules to prevent impossible patterns
+export const SPAWN_RULES = {
+  // After ground obstacle, minimum gap before aerial
+  MIN_GROUND_TO_AERIAL_GAP: 150,
+  // After aerial obstacle, minimum gap before ground (time to land)
+  MIN_AERIAL_TO_GROUND_GAP: 200,
+  // Minimum gap between same category obstacles
+  MIN_SAME_CATEGORY_GAP: 100,
 } as const;
 
 export const DIFFICULTY = {

@@ -11,8 +11,8 @@ import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
-import { InputAction, GroundMark, Decoration, Building, BuildingWindow, Crosswalk, CollisionCallback, GameStateType } from './types';
-import { DEBUG, COLORS, PLAYER, SCROLL, BUILDINGS, CROSSWALK, OBSTACLE, COLLISION, UI, AUTO_PLAYER, SCORE } from '../config/constants';
+import { InputAction, GroundMark, Tree, Building, BuildingWindow, Crosswalk, ObstacleType, CollisionCallback, GameStateType } from './types';
+import { DEBUG, COLORS, OBSTACLE_COLORS, PLAYER, SCROLL, TREES, BUILDINGS, CROSSWALK, OBSTACLE, OBSTACLE_TYPES, COLLISION, UI, AUTO_PLAYER, SCORE, SPAWN_RULES } from '../config/constants';
 
 export class Game {
   private renderer: Renderer;
@@ -28,7 +28,7 @@ export class Game {
 
   // Scrolling
   private groundMarks: GroundMark[] = [];
-  private decorations: Decoration[] = [];
+  private trees: Tree[] = [];
   private buildings: Building[] = [];
   private crosswalks: Crosswalk[] = [];
 
@@ -36,6 +36,8 @@ export class Game {
   private obstacles: Obstacle[] = [];
   private spawnTimer: number = 0;
   private nextSpawnTime: number = 0;
+  private lastSpawnedCategory: 'ground' | 'aerial' | null = null;
+  private timeSinceLastSpawn: number = 0;
 
   // Collision
   private onCollision: CollisionCallback | null = null;
@@ -99,6 +101,9 @@ export class Game {
     this.collisionFlashTimer = 0;
     this.aiJumpHoldTimer = 0;
     this.score = 0;
+    // Reset spawn pattern tracking
+    this.lastSpawnedCategory = null;
+    this.timeSinceLastSpawn = 0;
     this.player.reset(this.renderer.getGroundY());
   }
 
@@ -106,33 +111,101 @@ export class Game {
     return getSpawnTime(this.gameTime);
   }
 
+  private getRandomObstacleType(): ObstacleType {
+    const random = Math.random();
+    let cumulative = 0;
+
+    const types = Object.keys(OBSTACLE_TYPES) as ObstacleType[];
+    for (const type of types) {
+      cumulative += OBSTACLE_TYPES[type].weight;
+      if (random < cumulative) {
+        return type;
+      }
+    }
+
+    return 'trashCan'; // fallback
+  }
+
+  private getRandomTypeByCategory(category: 'ground' | 'aerial'): ObstacleType {
+    const types = (Object.keys(OBSTACLE_TYPES) as ObstacleType[]).filter(
+      (type) => OBSTACLE_TYPES[type].category === category
+    );
+
+    // Calculate total weight for this category
+    let totalWeight = 0;
+    for (const type of types) {
+      totalWeight += OBSTACLE_TYPES[type].weight;
+    }
+
+    // Pick random type within category
+    const random = Math.random() * totalWeight;
+    let cumulative = 0;
+    for (const type of types) {
+      cumulative += OBSTACLE_TYPES[type].weight;
+      if (random < cumulative) {
+        return type;
+      }
+    }
+
+    return types[0]; // fallback
+  }
+
+  private getValidObstacleType(): ObstacleType {
+    // Calculate effective gap based on time since last spawn
+    // Gap = time * scroll speed (how far the last obstacle has moved)
+    const gap = this.timeSinceLastSpawn * SCROLL.SPEED;
+
+    // Get a random candidate type
+    const candidateType = this.getRandomObstacleType();
+    const candidateCategory = OBSTACLE_TYPES[candidateType].category;
+
+    // First spawn - no validation needed
+    if (this.lastSpawnedCategory === null) {
+      return candidateType;
+    }
+
+    // Validate pattern
+    if (this.lastSpawnedCategory === 'ground' && candidateCategory === 'aerial') {
+      if (gap < SPAWN_RULES.MIN_GROUND_TO_AERIAL_GAP) {
+        // Force ground obstacle
+        return this.getRandomTypeByCategory('ground');
+      }
+    }
+
+    if (this.lastSpawnedCategory === 'aerial' && candidateCategory === 'ground') {
+      if (gap < SPAWN_RULES.MIN_AERIAL_TO_GROUND_GAP) {
+        // Force aerial obstacle
+        return this.getRandomTypeByCategory('aerial');
+      }
+    }
+
+    return candidateType;
+  }
+
   private spawnObstacle(): void {
     const width = this.renderer.getWidth();
     const groundY = this.renderer.getGroundY();
+    const spawnX = width + OBSTACLE.SPAWN_MARGIN;
 
-    const obsWidth =
-      OBSTACLE.MIN_WIDTH +
-      Math.random() * (OBSTACLE.MAX_WIDTH - OBSTACLE.MIN_WIDTH);
-    const obsHeight =
-      OBSTACLE.MIN_HEIGHT +
-      Math.random() * (OBSTACLE.MAX_HEIGHT - OBSTACLE.MIN_HEIGHT);
-
+    const obstacleType = this.getValidObstacleType();
     const obstacle = new Obstacle(
-      width + OBSTACLE.SPAWN_MARGIN,
+      spawnX,
       groundY,
-      obsWidth,
-      obsHeight
+      obstacleType
     );
+
+    // Track last spawned obstacle info
+    this.lastSpawnedCategory = OBSTACLE_TYPES[obstacleType].category;
+    this.timeSinceLastSpawn = 0; // Reset timer
 
     this.obstacles.push(obstacle);
   }
 
   private initBuildings(): void {
-    const width = this.renderer.getWidth();
-    // Start buildings off-screen to the right
-    let currentX = width;
+    // Start buildings from the left edge to fill the screen
+    let currentX = 0;
 
-    // Generate initial buildings
+    // Generate initial buildings to cover the entire screen
     for (let i = 0; i < BUILDINGS.COUNT; i++) {
       const building = this.generateBuilding(currentX);
       this.buildings.push(building);
@@ -178,6 +251,7 @@ export class Game {
   }
 
   private updateBuildings(deltaTime: number): void {
+    const width = this.renderer.getWidth();
     const scrollAmount = SCROLL.SPEED * BUILDINGS.PARALLAX_SPEED * deltaTime;
 
     for (const building of this.buildings) {
@@ -188,8 +262,11 @@ export class Game {
         // Find the rightmost building
         const maxX = Math.max(...this.buildings.map((b) => b.x + b.width));
 
-        // Generate new building properties with random gap
-        const newBuilding = this.generateBuilding(maxX + this.getRandomBuildingGap());
+        // Ensure new building spawns off-screen to the right
+        const newX = Math.max(width, maxX + this.getRandomBuildingGap());
+
+        // Generate new building properties
+        const newBuilding = this.generateBuilding(newX);
         building.x = newBuilding.x;
         building.width = newBuilding.width;
         building.height = newBuilding.height;
@@ -200,7 +277,6 @@ export class Game {
 
   private initScrollingElements(): void {
     const width = this.renderer.getWidth();
-    const groundY = this.renderer.getGroundY();
 
     // Initialize ground marks
     const markCount = Math.ceil(width / SCROLL.GROUND_MARK_GAP) + 2;
@@ -213,15 +289,18 @@ export class Game {
       this.crosswalks.push({ x: i * CROSSWALK.SPACING });
     }
 
-    // Initialize decorations
-    for (let i = 0; i < SCROLL.DECORATION_COUNT; i++) {
-      this.decorations.push({
-        x: Math.random() * width,
-        y: groundY - 30 - Math.random() * 150,
-        width: 2 + Math.random() * 4,
-        height: 10 + Math.random() * 30,
-      });
+    // Initialize trees (decorative background)
+    for (let i = 0; i < TREES.COUNT; i++) {
+      this.trees.push(this.generateTree(i * TREES.MIN_SPACING + Math.random() * 100));
     }
+  }
+
+  private generateTree(x: number): Tree {
+    return {
+      x,
+      trunkWidth: TREES.MIN_TRUNK_WIDTH + Math.random() * (TREES.MAX_TRUNK_WIDTH - TREES.MIN_TRUNK_WIDTH),
+      trunkHeight: TREES.MIN_TRUNK_HEIGHT + Math.random() * (TREES.MAX_TRUNK_HEIGHT - TREES.MIN_TRUNK_HEIGHT),
+    };
   }
 
   start(): void {
@@ -314,8 +393,16 @@ export class Game {
 
   private checkCollisions(): void {
     const playerHitbox = this.player.getHitbox();
+    const playerState = this.player.getState();
 
     for (const obstacle of this.obstacles) {
+      // Skip aerial obstacles when player is on ground
+      if (obstacle.getCategory() === 'aerial') {
+        if (playerState === 'idle' || playerState === 'landing') {
+          continue;
+        }
+      }
+
       const obstacleHitbox = obstacle.getHitbox();
 
       if (checkAABBCollision(playerHitbox, obstacleHitbox)) {
@@ -382,6 +469,9 @@ export class Game {
   }
 
   private updateObstacles(deltaTime: number): void {
+    // Track time since last spawn for pattern validation
+    this.timeSinceLastSpawn += deltaTime;
+
     // Spawn timer
     this.spawnTimer += deltaTime;
     if (this.spawnTimer >= this.nextSpawnTime) {
@@ -407,7 +497,6 @@ export class Game {
 
   private updateScrolling(deltaTime: number): void {
     const width = this.renderer.getWidth();
-    const groundY = this.renderer.getGroundY();
     const scrollAmount = SCROLL.SPEED * deltaTime;
 
     // Update ground marks
@@ -430,15 +519,20 @@ export class Game {
       }
     }
 
-    // Update decorations
-    for (const deco of this.decorations) {
-      deco.x -= scrollAmount;
-      if (deco.x < -deco.width) {
-        // Recycle to the right with random position
-        deco.x = width + Math.random() * 100;
-        deco.y = groundY - 30 - Math.random() * 150;
-        deco.width = 2 + Math.random() * 4;
-        deco.height = 10 + Math.random() * 30;
+    // Update trees (parallax layer between buildings and ground)
+    const treeScrollAmount = SCROLL.SPEED * TREES.PARALLAX_SPEED * deltaTime;
+    for (const tree of this.trees) {
+      tree.x -= treeScrollAmount;
+
+      // Calculate total tree width for off-screen check
+      const foliageWidth = tree.trunkWidth * TREES.FOLIAGE_RATIO;
+      if (tree.x < -foliageWidth) {
+        // Recycle to the right
+        const maxX = Math.max(...this.trees.map((t) => t.x));
+        const newTree = this.generateTree(Math.max(width, maxX + TREES.MIN_SPACING));
+        tree.x = newTree.x;
+        tree.trunkWidth = newTree.trunkWidth;
+        tree.trunkHeight = newTree.trunkHeight;
       }
     }
   }
@@ -446,7 +540,7 @@ export class Game {
   private render(): void {
     this.renderer.clear();
     this.renderBuildings();
-    this.renderDecorations();
+    this.renderTrees();
     this.renderGround();
     this.renderObstacles();
 
@@ -493,22 +587,224 @@ export class Game {
   }
 
   private renderObstacles(): void {
-    const ctx = this.renderer.getContext();
-    ctx.fillStyle = OBSTACLE.COLOR;
-
     for (const obstacle of this.obstacles) {
-      const pos = obstacle.getPosition();
-      ctx.fillRect(pos.x, pos.y, obstacle.getWidth(), obstacle.getHeight());
+      const type = obstacle.getType();
+      switch (type) {
+        case 'trashCan':
+          this.renderTrashCan(obstacle);
+          break;
+        case 'cone':
+          this.renderCone(obstacle);
+          break;
+        case 'car':
+          this.renderCar(obstacle);
+          break;
+        case 'streetlight':
+          this.renderStreetlight(obstacle);
+          break;
+        case 'sign':
+          this.renderSign(obstacle);
+          break;
+        case 'shopSign':
+          this.renderShopSign(obstacle);
+          break;
+      }
     }
   }
 
-  private renderDecorations(): void {
+  private renderTrashCan(obstacle: Obstacle): void {
     const ctx = this.renderer.getContext();
-    ctx.fillStyle = COLORS.GROUND_LINE;
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
 
-    for (const deco of this.decorations) {
-      ctx.globalAlpha = 0.3;
-      ctx.fillRect(deco.x, deco.y, deco.width, deco.height);
+    // Body (green rectangle)
+    ctx.fillStyle = OBSTACLE_COLORS.TRASH_CAN;
+    ctx.fillRect(pos.x, pos.y + 5, w, h - 5);
+
+    // Lid (darker green, slightly wider)
+    ctx.fillStyle = OBSTACLE_COLORS.TRASH_CAN_LID;
+    ctx.fillRect(pos.x - 2, pos.y, w + 4, 8);
+  }
+
+  private renderCone(obstacle: Obstacle): void {
+    const ctx = this.renderer.getContext();
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
+
+    // Orange cone (triangle shape)
+    ctx.fillStyle = OBSTACLE_COLORS.CONE;
+    ctx.beginPath();
+    ctx.moveTo(pos.x + w / 2, pos.y); // Top center
+    ctx.lineTo(pos.x + w, pos.y + h); // Bottom right
+    ctx.lineTo(pos.x, pos.y + h); // Bottom left
+    ctx.closePath();
+    ctx.fill();
+
+    // White stripes (2 horizontal)
+    ctx.fillStyle = OBSTACLE_COLORS.CONE_STRIPES;
+    const stripeH = 4;
+    ctx.fillRect(pos.x + w * 0.2, pos.y + h * 0.35, w * 0.6, stripeH);
+    ctx.fillRect(pos.x + w * 0.1, pos.y + h * 0.6, w * 0.8, stripeH);
+  }
+
+  private renderCar(obstacle: Obstacle): void {
+    const ctx = this.renderer.getContext();
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
+
+    // Randomly choose car color (deterministic based on position)
+    const useBlue = Math.floor(pos.x) % 2 === 0;
+    const bodyColor = useBlue ? OBSTACLE_COLORS.CAR_BLUE : OBSTACLE_COLORS.CAR_RED;
+
+    // Car body (main rectangle)
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(pos.x, pos.y + 10, w, h - 20);
+
+    // Roof (smaller rectangle on top)
+    ctx.fillRect(pos.x + w * 0.2, pos.y, w * 0.5, 15);
+
+    // Wheels (black circles)
+    ctx.fillStyle = OBSTACLE_COLORS.CAR_WHEELS;
+    const wheelRadius = 8;
+    // Front wheel
+    ctx.beginPath();
+    ctx.arc(pos.x + 20, pos.y + h - 5, wheelRadius, 0, Math.PI * 2);
+    ctx.fill();
+    // Rear wheel
+    ctx.beginPath();
+    ctx.arc(pos.x + w - 20, pos.y + h - 5, wheelRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Headlights (yellow rectangles on front)
+    ctx.fillStyle = OBSTACLE_COLORS.CAR_HEADLIGHTS;
+    ctx.fillRect(pos.x + w - 5, pos.y + 15, 5, 8);
+    ctx.fillRect(pos.x + w - 5, pos.y + h - 23, 5, 8);
+  }
+
+  private renderStreetlight(obstacle: Obstacle): void {
+    const ctx = this.renderer.getContext();
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
+    const config = OBSTACLE_TYPES.streetlight;
+
+    // Pole (decorative, no collision)
+    ctx.fillStyle = OBSTACLE_COLORS.STREETLIGHT_POLE;
+    const poleX = pos.x + (w - 6) / 2; // Center the pole
+    ctx.fillRect(poleX, pos.y + config.hitboxHeight, 6, h - config.hitboxHeight);
+
+    // Lamp housing (top part with collision)
+    ctx.fillStyle = OBSTACLE_COLORS.STREETLIGHT_LAMP;
+    const lampX = pos.x - (config.hitboxWidth - w) / 2;
+    ctx.fillRect(lampX, pos.y, config.hitboxWidth, config.hitboxHeight);
+
+    // Halo effect (semi-transparent glow)
+    ctx.fillStyle = OBSTACLE_COLORS.STREETLIGHT_HALO;
+    ctx.globalAlpha = 0.3;
+    const haloSize = 50;
+    ctx.beginPath();
+    ctx.arc(
+      lampX + config.hitboxWidth / 2,
+      pos.y + config.hitboxHeight,
+      haloSize,
+      0,
+      Math.PI // Only bottom half
+    );
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  private renderSign(obstacle: Obstacle): void {
+    const ctx = this.renderer.getContext();
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
+    const config = OBSTACLE_TYPES.sign;
+
+    // Pole (decorative)
+    ctx.fillStyle = OBSTACLE_COLORS.SIGN_POLE;
+    const poleX = pos.x + (w - 6) / 2;
+    ctx.fillRect(poleX, pos.y + config.hitboxHeight, 6, h - config.hitboxHeight);
+
+    // Sign panel (with collision)
+    const signX = pos.x - (config.hitboxWidth - w) / 2;
+
+    // Border
+    ctx.fillStyle = OBSTACLE_COLORS.SIGN_BORDER;
+    ctx.fillRect(signX - 2, pos.y - 2, config.hitboxWidth + 4, config.hitboxHeight + 4);
+
+    // Panel
+    ctx.fillStyle = OBSTACLE_COLORS.SIGN_PANEL;
+    ctx.fillRect(signX, pos.y, config.hitboxWidth, config.hitboxHeight);
+  }
+
+  private renderShopSign(obstacle: Obstacle): void {
+    const ctx = this.renderer.getContext();
+    const pos = obstacle.getPosition();
+    const w = obstacle.getWidth();
+    const h = obstacle.getHeight();
+    const config = OBSTACLE_TYPES.shopSign;
+
+    // Support bracket (decorative)
+    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_SUPPORT;
+    const supportX = pos.x + (w - 4) / 2;
+    ctx.fillRect(supportX, pos.y + config.hitboxHeight, 4, h - config.hitboxHeight);
+
+    // Horizontal bracket
+    const signX = pos.x - (config.hitboxWidth - w) / 2;
+    ctx.fillRect(signX, pos.y + config.hitboxHeight - 4, config.hitboxWidth, 4);
+
+    // Sign panel glow (behind)
+    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(signX - 3, pos.y - 3, config.hitboxWidth + 6, config.hitboxHeight + 6);
+    ctx.globalAlpha = 1;
+
+    // Sign panel
+    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_PANEL;
+    ctx.fillRect(signX, pos.y, config.hitboxWidth, config.hitboxHeight);
+
+    // Inner glow lines (to simulate neon)
+    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
+    ctx.fillRect(signX + 5, pos.y + 5, config.hitboxWidth - 10, 3);
+    ctx.fillRect(signX + 5, pos.y + config.hitboxHeight - 8, config.hitboxWidth - 10, 3);
+  }
+
+  private renderTrees(): void {
+    const ctx = this.renderer.getContext();
+    const groundY = this.renderer.getGroundY();
+
+    for (const tree of this.trees) {
+      const foliageWidth = tree.trunkWidth * TREES.FOLIAGE_RATIO;
+      const foliageHeight = tree.trunkHeight * TREES.FOLIAGE_HEIGHT_RATIO;
+
+      // Calculate positions
+      const trunkX = tree.x - tree.trunkWidth / 2;
+      const trunkY = groundY - tree.trunkHeight;
+      const foliageY = trunkY - foliageHeight + 10; // Overlap slightly with trunk
+
+      // Draw trunk
+      ctx.fillStyle = COLORS.TREE_TRUNK;
+      ctx.globalAlpha = 0.7;
+      ctx.fillRect(trunkX, trunkY, tree.trunkWidth, tree.trunkHeight);
+
+      // Draw foliage (rounded/oval shape using ellipse or simple triangle)
+      ctx.fillStyle = COLORS.TREE_FOLIAGE;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.ellipse(
+        tree.x,
+        foliageY + foliageHeight / 2,
+        foliageWidth / 2,
+        foliageHeight / 2,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
@@ -523,13 +819,14 @@ export class Game {
     ctx.fillStyle = COLORS.GROUND;
     ctx.fillRect(0, groundY, width, height - groundY);
 
-    // Crosswalks (zebra crossing pattern)
+    // Crosswalks (zebra crossing pattern - vertical stripes)
     ctx.fillStyle = COLORS.GROUND_LINE;
     for (const crosswalk of this.crosswalks) {
-      const stripeCount = Math.floor(CROSSWALK.WIDTH / (CROSSWALK.STRIPE_WIDTH + CROSSWALK.STRIPE_GAP));
-      for (let i = 0; i < stripeCount; i++) {
-        const stripeX = crosswalk.x + i * (CROSSWALK.STRIPE_WIDTH + CROSSWALK.STRIPE_GAP);
-        ctx.fillRect(stripeX, groundY + 5, CROSSWALK.STRIPE_WIDTH, CROSSWALK.STRIPE_HEIGHT);
+      // Center the stripes horizontally within the crosswalk
+      const stripeX = crosswalk.x + (CROSSWALK.WIDTH - CROSSWALK.STRIPE_WIDTH) / 2;
+      for (let i = 0; i < CROSSWALK.STRIPE_COUNT; i++) {
+        const stripeY = groundY + 5 + i * (CROSSWALK.STRIPE_HEIGHT + CROSSWALK.STRIPE_GAP);
+        ctx.fillRect(stripeX, stripeY, CROSSWALK.STRIPE_WIDTH, CROSSWALK.STRIPE_HEIGHT);
       }
     }
 
@@ -556,26 +853,75 @@ export class Game {
     const bodyColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_BODY;
     const headColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_HEAD;
 
-    // Body (rectangle)
-    ctx.fillStyle = bodyColor;
-    ctx.fillRect(
-      pos.x,
-      pos.y + PLAYER.HEAD_RADIUS,
-      PLAYER.WIDTH,
-      PLAYER.HEIGHT - PLAYER.HEAD_RADIUS
-    );
+    // Get squash factor for landing animation
+    const squash = this.player.getSquashFactor();
+    const isSquashing = squash.scaleY !== 1 || squash.scaleX !== 1;
 
-    // Head (circle)
-    ctx.fillStyle = headColor;
-    ctx.beginPath();
-    ctx.arc(
-      pos.x + PLAYER.WIDTH / 2,
-      pos.y + PLAYER.HEAD_RADIUS,
-      PLAYER.HEAD_RADIUS,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
+    // Calculate leg animation offset
+    const phase = this.player.getRunAnimationPhase();
+    const legOffset = Math.sin(phase * Math.PI * 2) * PLAYER.LEG_AMPLITUDE;
+
+    // Base dimensions
+    const baseBodyHeight = PLAYER.HEIGHT - PLAYER.HEAD_RADIUS - PLAYER.LEG_HEIGHT;
+
+    if (isSquashing) {
+      // Squash mode: anchor at feet (ground level)
+      const groundY = this.renderer.getGroundY();
+      const scaledWidth = PLAYER.WIDTH * squash.scaleX;
+      const scaledBodyHeight = baseBodyHeight * squash.scaleY;
+      const scaledLegHeight = PLAYER.LEG_HEIGHT * squash.scaleY;
+      const scaledHeadRadius = PLAYER.HEAD_RADIUS * squash.scaleY;
+
+      // Position from ground up (feet anchored)
+      const feetY = groundY;
+      const legY = feetY - scaledLegHeight;
+      const bodyY = legY - scaledBodyHeight;
+      const headY = bodyY - scaledHeadRadius;
+
+      // Center X offset for width scaling
+      const xOffset = (scaledWidth - PLAYER.WIDTH) / 2;
+      const playerX = pos.x - xOffset;
+
+      // Leg positions (scaled, no animation during squash)
+      const scaledLegWidth = PLAYER.LEG_WIDTH * squash.scaleX;
+      const scaledLegGap = PLAYER.LEG_GAP * squash.scaleX;
+      const leftLegX = playerX + (scaledWidth - scaledLegGap) / 2 - scaledLegWidth;
+      const rightLegX = playerX + (scaledWidth + scaledLegGap) / 2;
+
+      // Draw legs
+      ctx.fillStyle = bodyColor;
+      ctx.fillRect(leftLegX, legY, scaledLegWidth, scaledLegHeight);
+      ctx.fillRect(rightLegX, legY, scaledLegWidth, scaledLegHeight);
+
+      // Body
+      ctx.fillRect(playerX, bodyY, scaledWidth, scaledBodyHeight);
+
+      // Head
+      ctx.fillStyle = headColor;
+      ctx.beginPath();
+      ctx.arc(playerX + scaledWidth / 2, headY, scaledHeadRadius, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Normal mode: use pos.y
+      const bodyY = pos.y + PLAYER.HEAD_RADIUS;
+      const legY = bodyY + baseBodyHeight;
+      const leftLegX = pos.x + (PLAYER.WIDTH - PLAYER.LEG_GAP) / 2 - PLAYER.LEG_WIDTH;
+      const rightLegX = pos.x + (PLAYER.WIDTH + PLAYER.LEG_GAP) / 2;
+
+      // Draw legs
+      ctx.fillStyle = bodyColor;
+      ctx.fillRect(leftLegX + legOffset, legY, PLAYER.LEG_WIDTH, PLAYER.LEG_HEIGHT);
+      ctx.fillRect(rightLegX - legOffset, legY, PLAYER.LEG_WIDTH, PLAYER.LEG_HEIGHT);
+
+      // Body
+      ctx.fillRect(pos.x, bodyY, PLAYER.WIDTH, baseBodyHeight);
+
+      // Head
+      ctx.fillStyle = headColor;
+      ctx.beginPath();
+      ctx.arc(pos.x + PLAYER.WIDTH / 2, pos.y + PLAYER.HEAD_RADIUS, PLAYER.HEAD_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   private renderFps(): void {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCROLL } from '../../../src/config/constants';
+import { SCROLL, TREES } from '../../../src/config/constants';
 
 describe('Scrolling System', () => {
   describe('ground marks movement', () => {
@@ -64,25 +64,26 @@ describe('Scrolling System', () => {
     });
   });
 
-  describe('decorations movement', () => {
-    it('should move decorations left based on deltaTime', () => {
-      const deco = { x: 200, y: 100, width: 4, height: 20 };
+  describe('trees movement', () => {
+    it('should move trees left with parallax speed', () => {
+      const tree = { x: 200, trunkWidth: 10, trunkHeight: 60 };
       const deltaTime = 0.016;
 
-      deco.x -= SCROLL.SPEED * deltaTime;
+      tree.x -= SCROLL.SPEED * TREES.PARALLAX_SPEED * deltaTime;
 
-      expect(deco.x).toBeCloseTo(200 - SCROLL.SPEED * 0.016, 2);
+      expect(tree.x).toBeCloseTo(200 - SCROLL.SPEED * TREES.PARALLAX_SPEED * 0.016, 2);
     });
 
-    it('should recycle decorations when they exit screen left', () => {
+    it('should recycle trees when they exit screen left', () => {
       const screenWidth = 800;
-      const deco = { x: -10, y: 100, width: 4, height: 20 };
+      const tree = { x: -20, trunkWidth: 10, trunkHeight: 60 };
+      const foliageWidth = tree.trunkWidth * TREES.FOLIAGE_RATIO;
 
-      if (deco.x < -deco.width) {
-        deco.x = screenWidth + 50; // Recycled to right
+      if (tree.x < -foliageWidth) {
+        tree.x = screenWidth + TREES.MIN_SPACING; // Recycled to right
       }
 
-      expect(deco.x).toBe(screenWidth + 50);
+      expect(tree.x).toBe(screenWidth + TREES.MIN_SPACING);
     });
   });
 
@@ -96,8 +97,10 @@ describe('Scrolling System', () => {
       expect(SCROLL.GROUND_MARK_GAP).toBeLessThan(200);
     });
 
-    it('should have at least some decorations', () => {
-      expect(SCROLL.DECORATION_COUNT).toBeGreaterThan(0);
+    it('should have trees configured', () => {
+      expect(TREES.COUNT).toBeGreaterThan(0);
+      expect(TREES.PARALLAX_SPEED).toBeGreaterThan(0);
+      expect(TREES.PARALLAX_SPEED).toBeLessThan(1);
     });
   });
 });
