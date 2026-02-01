@@ -36,6 +36,12 @@ export class InputManager {
         this.isJumpKeyDown = true;
         this.emit({ type: 'jump_start' });
       }
+    } else if (event.code === 'KeyS' || event.code === 'Escape') {
+      this.emit({ type: 'toggle_skin_selector' });
+    } else if (event.code === 'ArrowLeft') {
+      this.emit({ type: 'skin_prev' });
+    } else if (event.code === 'ArrowRight') {
+      this.emit({ type: 'skin_next' });
     }
   };
 

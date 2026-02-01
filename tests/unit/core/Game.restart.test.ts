@@ -5,6 +5,8 @@ import { Game } from '../../../src/core/Game';
 const mockCanvas = {
   width: 800,
   height: 600,
+  addEventListener: vi.fn(),
+  getBoundingClientRect: vi.fn(() => ({ left: 0, top: 0 })),
   getContext: () => ({
     fillRect: vi.fn(),
     fillStyle: '',

@@ -4,7 +4,7 @@
 
 Mini-jeu de type endless runner en TypeScript/Canvas.
 
-## État Actuel - MVP Complet, Sprint 2 Planifié
+## État Actuel - Epics 1-6 Terminés, Epic 7 Planifié
 
 **Epic 1 : Foundation & Core Game Loop** - Terminé
 
@@ -34,47 +34,61 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 3.4 | Game Over Screen | Done |
 | 3.5 | Restart Flow | Done |
 
-**Epic 4 : Ville de Nuit - Polish Visuel** - À faire
+**Epic 4 : Ville de Nuit - Polish Visuel** - Terminé
 
 | Story | Titre | Status |
 |-------|-------|--------|
-| 4.1 | Palette Couleurs "Ville de Nuit" | À faire |
-| 4.2 | Décor - Immeubles Arrière-Plan | À faire |
-| 4.3 | Décor - Sol avec Passages Piétons | À faire |
-| 4.4 | Obstacles Sol - Poubelle, Cône, Voiture | À faire |
-| 4.5 | Personnage - Jambes + Animation Course | À faire |
-| 4.6 | Personnage - Animation Saut | À faire |
+| 4.1 | Palette Couleurs "Ville de Nuit" | Done |
+| 4.2 | Décor - Immeubles Arrière-Plan | Done |
+| 4.3 | Décor - Sol avec Passages Piétons | Done |
+| 4.4 | Obstacles Sol - Poubelle, Cône, Voiture | Done |
+| 4.5 | Personnage - Jambes + Animation Course | Done |
+| 4.6 | Personnage - Animation Saut | Done |
 
-**Epic 5 : Obstacles Aériens** - À faire
+**Epic 5 : Obstacles Aériens** - Terminé
 
 | Story | Titre | Status |
 |-------|-------|--------|
-| 5.1 | Lampadaires (Obstacle Aérien) | À faire |
-| 5.2 | Autres Obstacles Aériens | À faire |
-| 5.3 | Validation des Patterns | À faire |
+| 5.1 | Lampadaires (Obstacle Aérien) | Done |
+| 5.2 | Autres Obstacles Aériens | Done |
+| 5.3 | Validation des Patterns | Done |
+
+**Epic 6 : Character Upgrade** - Terminé
+
+| Story | Titre | Status |
+|-------|-------|--------|
+| 6.1 | Système de Skins (Architecture) | Done |
+| 6.2 | Sprite Sheet du Personnage | Done |
+| 6.3 | Animations Fluides et Réalistes | Done |
+| 6.4 | Sélecteur de Skin en Jeu | Done |
+
+**Epic 7 : Compatibilité Mobile & Optimisations** - À faire
+
+| Story | Titre | Status |
+|-------|-------|--------|
+| 7.1 | Viewport & Meta Tags Mobile | Draft |
+| 7.2 | Contrôles Tactiles | Draft |
+| 7.3 | Layout Adaptatif (Portrait & Paysage) | Draft |
+| 7.4 | UI Tactile (Boutons & Skin Selector) | Draft |
+| 7.5 | Optimisations Performance Mobile | Draft |
 
 ## Prochaine Action
 
-### Commencer Epic 4 - Story 4.1
+### Commencer Epic 7 - Story 7.1
 
 Pour reprendre le travail :
 
 ```
-/bmad-orchestrator
+/dev
 ```
 
-Puis :
-1. Taper `3` pour sélectionner l'agent Dev (James)
-2. Créer et implémenter la Story 4.1 (Palette Couleurs)
+Puis implémenter la Story 7.1 (Viewport & Meta Tags Mobile)
 
-### Référence Visuelle
+### Séquence Epic 7
 
-Le fichier `docs/front-end-spec.md` contient toutes les spécifications visuelles :
-- Palette de couleurs complète
-- Dimensions des obstacles (poubelle, cône, voiture)
-- Design du personnage (corps, tête, jambes)
-- Animations (course, saut, atterrissage)
-- Éléments de décor (immeubles, passages piétons, lampadaires)
+```
+7.1 (Viewport) → 7.2 (Touch) → 7.3 (Layout) → 7.4 (UI Tactile) → 7.5 (Performance)
+```
 
 ## Architecture
 
@@ -84,11 +98,13 @@ src/
 ├── config/         # constants.ts
 ├── entities/       # Entity.ts, Player.ts, Obstacle.ts
 ├── input/          # InputManager.ts
+├── skins/          # PlayerSkin.ts, SkinManager.ts, ClassicSkin.ts, DetailedSkin.ts, AnimationController.ts, SpriteGenerator.ts
 ├── systems/        # CollisionSystem.ts, DifficultySystem.ts, AutoPlayerSystem.ts
-└── rendering/      # Renderer.ts
+├── ui/             # SkinSelector.ts
+└── rendering/      # Renderer.ts, SpriteSheet.ts
 ```
 
-**207 tests unitaires passent.**
+**334 tests unitaires passent.**
 
 ## Commandes Utiles
 
@@ -103,10 +119,9 @@ npm run build    # Build production
 ## Documentation BMAD
 
 - `docs/prd/epic-list.md` - Liste des epics
-- `docs/prd/epic-4-night-city-visuals.md` - Epic 4 (Ville de Nuit)
-- `docs/prd/epic-5-aerial-obstacles.md` - Epic 5 (Obstacles Aériens)
+- `docs/prd/epic-7-mobile-compatibility.md` - Epic 7 (Compatibilité Mobile)
 - `docs/front-end-spec.md` - Specs visuelles complètes
-- `docs/stories/` - Stories complétées
+- `docs/stories/` - Stories
 
 ## CI/CD
 

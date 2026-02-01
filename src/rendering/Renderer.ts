@@ -25,12 +25,22 @@ export class Renderer {
     this.ctx = context;
 
     this.setupCanvas();
+    this.preventDefaultTouchBehavior();
     this.handleResize();
     window.addEventListener('resize', () => this.handleResize());
   }
 
   private setupCanvas(): void {
     this.ctx.imageSmoothingEnabled = false;
+  }
+
+  private preventDefaultTouchBehavior(): void {
+    this.canvas.addEventListener('touchstart', (e) => e.preventDefault(), {
+      passive: false,
+    });
+    this.canvas.addEventListener('touchmove', (e) => e.preventDefault(), {
+      passive: false,
+    });
   }
 
   private handleResize(): void {
@@ -43,6 +53,10 @@ export class Renderer {
   clear(): void {
     this.ctx.fillStyle = COLORS.SKY;
     this.ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   getContext(): CanvasRenderingContext2D {

@@ -13,6 +13,10 @@ import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
 import { GameStateManager } from './GameStateManager';
 import { InputAction, GroundMark, Tree, Building, BuildingWindow, Crosswalk, ObstacleType, CollisionCallback, GameStateType } from './types';
 import { DEBUG, COLORS, OBSTACLE_COLORS, PLAYER, SCROLL, TREES, BUILDINGS, CROSSWALK, OBSTACLE, OBSTACLE_TYPES, COLLISION, UI, AUTO_PLAYER, SCORE, SPAWN_RULES } from '../config/constants';
+import { SkinManager } from '../skins/SkinManager';
+import { ClassicSkin } from '../skins/ClassicSkin';
+import { DetailedSkin } from '../skins/DetailedSkin';
+import { SkinSelector } from '../ui/SkinSelector';
 
 export class Game {
   private renderer: Renderer;
@@ -57,6 +61,13 @@ export class Game {
   private score: number = 0;
   private finalScore: number = 0;
 
+  // Delta time for rendering
+  private lastDeltaTime: number = 0;
+
+  // Skins
+  private skinManager: SkinManager;
+  private skinSelector: SkinSelector;
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
@@ -66,6 +77,32 @@ export class Game {
     this.initScrollingElements();
     this.nextSpawnTime = this.getRandomSpawnTime();
 
+    // Initialize skin manager
+    this.skinManager = new SkinManager();
+    this.skinManager.register(new ClassicSkin());
+    const detailedSkin = new DetailedSkin();
+    this.skinManager.register(detailedSkin);
+    detailedSkin.init().then(() => {
+      // Load saved preference (may override default)
+      this.skinManager.loadPref();
+    }).catch(() => {
+      // Fallback to ClassicSkin if DetailedSkin fails to initialize
+      this.skinManager.setActive('Classic');
+    });
+
+    // Initialize skin selector
+    this.skinSelector = new SkinSelector(this.skinManager);
+
+    // Click handling for skin selector arrows
+    const canvas = this.renderer.getCanvas();
+    canvas.addEventListener('click', (event: MouseEvent) => {
+      if (!this.skinSelector.isVisible()) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      this.skinSelector.handleClick(x, y);
+    });
+
     // Initialize state manager
     this.stateManager = new GameStateManager();
     this.setupStateCallbacks();
@@ -74,6 +111,7 @@ export class Game {
   private setupStateCallbacks(): void {
     this.stateManager.registerCallbacks('playing', {
       onEnter: () => {
+        this.skinSelector.close();
         this.resetGameplay();
       },
     });
@@ -320,6 +358,7 @@ export class Game {
 
     const deltaTime = (currentTime - this.lastTime) / 1000;
     this.lastTime = currentTime;
+    this.lastDeltaTime = deltaTime;
 
     this.updateFps(currentTime);
     this.update(deltaTime);
@@ -341,6 +380,23 @@ export class Game {
 
   private handleInput(action: InputAction): void {
     const currentState = this.stateManager.getState();
+
+    // Skin selector inputs (only in attract mode)
+    if (currentState === 'attract') {
+      if (action.type === 'toggle_skin_selector') {
+        this.skinSelector.toggle();
+        return;
+      }
+      if (this.skinSelector.isVisible()) {
+        if (action.type === 'skin_prev') {
+          this.skinSelector.prevSkin();
+        } else if (action.type === 'skin_next') {
+          this.skinSelector.nextSkin();
+        }
+        // Block other inputs while selector is open
+        return;
+      }
+    }
 
     if (action.type === 'jump_start') {
       if (currentState === 'attract') {
@@ -552,6 +608,13 @@ export class Game {
     // Render state-specific overlays and UI
     if (this.stateManager.isState('attract')) {
       this.renderAttractOverlay();
+      if (this.skinSelector.isVisible()) {
+        this.skinSelector.render(
+          this.renderer.getContext(),
+          this.renderer.getWidth(),
+          this.renderer.getHeight(),
+        );
+      }
     } else if (this.stateManager.isState('playing')) {
       this.renderScore();
     } else if (this.stateManager.isState('gameOver')) {
@@ -848,80 +911,18 @@ export class Game {
   private renderPlayer(): void {
     const ctx = this.renderer.getContext();
     const pos = this.player.getPosition();
+    const skin = this.skinManager.getActive();
 
-    // Use flash color if colliding
-    const bodyColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_BODY;
-    const headColor = this.isColliding ? COLLISION.FLASH_COLOR : COLORS.PLAYER_HEAD;
-
-    // Get squash factor for landing animation
-    const squash = this.player.getSquashFactor();
-    const isSquashing = squash.scaleY !== 1 || squash.scaleX !== 1;
-
-    // Calculate leg animation offset
-    const phase = this.player.getRunAnimationPhase();
-    const legOffset = Math.sin(phase * Math.PI * 2) * PLAYER.LEG_AMPLITUDE;
-
-    // Base dimensions
-    const baseBodyHeight = PLAYER.HEIGHT - PLAYER.HEAD_RADIUS - PLAYER.LEG_HEIGHT;
-
-    if (isSquashing) {
-      // Squash mode: anchor at feet (ground level)
-      const groundY = this.renderer.getGroundY();
-      const scaledWidth = PLAYER.WIDTH * squash.scaleX;
-      const scaledBodyHeight = baseBodyHeight * squash.scaleY;
-      const scaledLegHeight = PLAYER.LEG_HEIGHT * squash.scaleY;
-      const scaledHeadRadius = PLAYER.HEAD_RADIUS * squash.scaleY;
-
-      // Position from ground up (feet anchored)
-      const feetY = groundY;
-      const legY = feetY - scaledLegHeight;
-      const bodyY = legY - scaledBodyHeight;
-      const headY = bodyY - scaledHeadRadius;
-
-      // Center X offset for width scaling
-      const xOffset = (scaledWidth - PLAYER.WIDTH) / 2;
-      const playerX = pos.x - xOffset;
-
-      // Leg positions (scaled, no animation during squash)
-      const scaledLegWidth = PLAYER.LEG_WIDTH * squash.scaleX;
-      const scaledLegGap = PLAYER.LEG_GAP * squash.scaleX;
-      const leftLegX = playerX + (scaledWidth - scaledLegGap) / 2 - scaledLegWidth;
-      const rightLegX = playerX + (scaledWidth + scaledLegGap) / 2;
-
-      // Draw legs
-      ctx.fillStyle = bodyColor;
-      ctx.fillRect(leftLegX, legY, scaledLegWidth, scaledLegHeight);
-      ctx.fillRect(rightLegX, legY, scaledLegWidth, scaledLegHeight);
-
-      // Body
-      ctx.fillRect(playerX, bodyY, scaledWidth, scaledBodyHeight);
-
-      // Head
-      ctx.fillStyle = headColor;
-      ctx.beginPath();
-      ctx.arc(playerX + scaledWidth / 2, headY, scaledHeadRadius, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // Normal mode: use pos.y
-      const bodyY = pos.y + PLAYER.HEAD_RADIUS;
-      const legY = bodyY + baseBodyHeight;
-      const leftLegX = pos.x + (PLAYER.WIDTH - PLAYER.LEG_GAP) / 2 - PLAYER.LEG_WIDTH;
-      const rightLegX = pos.x + (PLAYER.WIDTH + PLAYER.LEG_GAP) / 2;
-
-      // Draw legs
-      ctx.fillStyle = bodyColor;
-      ctx.fillRect(leftLegX + legOffset, legY, PLAYER.LEG_WIDTH, PLAYER.LEG_HEIGHT);
-      ctx.fillRect(rightLegX - legOffset, legY, PLAYER.LEG_WIDTH, PLAYER.LEG_HEIGHT);
-
-      // Body
-      ctx.fillRect(pos.x, bodyY, PLAYER.WIDTH, baseBodyHeight);
-
-      // Head
-      ctx.fillStyle = headColor;
-      ctx.beginPath();
-      ctx.arc(pos.x + PLAYER.WIDTH / 2, pos.y + PLAYER.HEAD_RADIUS, PLAYER.HEAD_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    skin.render(ctx, pos, {
+      state: this.player.getState(),
+      runPhase: this.player.getRunAnimationPhase(),
+      squashFactor: this.player.getSquashFactor(),
+      isColliding: this.isColliding,
+      groundY: this.renderer.getGroundY(),
+      velocity: this.player.getVelocity(),
+      deltaTime: this.lastDeltaTime,
+      gameSpeed: this.getCurrentSpeedMultiplier(),
+    });
   }
 
   private renderFps(): void {
@@ -950,6 +951,15 @@ export class Game {
 
     ctx.fillStyle = UI.OVERLAY_COLOR;
     ctx.fillText(text, width / 2, height / 2);
+
+    // Skin hint (only when selector is not open)
+    if (!this.skinSelector.isVisible()) {
+      ctx.font = '16px Arial';
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#E0E1DD';
+      ctx.fillText('Press S to change skin', width / 2, height - 40);
+      ctx.globalAlpha = 1;
+    }
 
     // Reset shadow
     ctx.shadowColor = 'transparent';
@@ -1054,6 +1064,15 @@ export class Game {
 
   getCurrentDifficulty(): SpawnInterval {
     return calculateSpawnInterval(this.gameTime);
+  }
+
+  getCurrentSpeedMultiplier(): number {
+    // Speed multiplier based on difficulty progression
+    // At gameTime=0, multiplier=1; increases as difficulty ramps up
+    const difficulty = this.getCurrentDifficulty();
+    const baseInterval = (OBSTACLE.MIN_SPAWN_INTERVAL + OBSTACLE.MAX_SPAWN_INTERVAL) / 2;
+    const currentInterval = (difficulty.min + difficulty.max) / 2;
+    return baseInterval / currentInterval;
   }
 
   getStateManager(): GameStateManager {

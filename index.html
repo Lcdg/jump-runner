@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0D1B2A" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Jump Runner</title>
     <style>
       * {
@@ -14,11 +18,15 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
       canvas {
         display: block;
         width: 100vw;
         height: 100vh;
+        touch-action: none;
       }
     </style>
   </head>

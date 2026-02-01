@@ -15,4 +15,10 @@
 ## Epic 5: Obstacles Aériens
 **Goal** : Enrichir le gameplay en ajoutant des obstacles aériens que le joueur doit éviter en restant au sol. Créer une dynamique de jeu plus riche avec des patterns mixtes sol/aérien.
 
+## Epic 6: Character Upgrade - Personnage Détaillé & Système de Skins
+**Goal** : Remplacer le personnage géométrique basique par un personnage humain détaillé rendu via sprite sheets, avec des animations fluides et réalistes. Mettre en place un système de skins permettant de conserver et switcher entre les différentes versions du personnage.
+
+## Epic 7: Compatibilité Mobile & Optimisations
+**Goal** : Rendre le jeu entièrement jouable sur smartphone et tablette avec des contrôles tactiles, un layout adaptatif aux deux orientations (portrait et paysage), et des optimisations de performance mobile.
+
 ---

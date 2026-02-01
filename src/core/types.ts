@@ -28,7 +28,10 @@ export type ObstacleCategory = 'ground' | 'aerial';
 export type InputAction =
   | { type: 'jump_start' }
   | { type: 'jump_end' }
-  | { type: 'start_game' };
+  | { type: 'start_game' }
+  | { type: 'toggle_skin_selector' }
+  | { type: 'skin_prev' }
+  | { type: 'skin_next' };
 
 export interface GroundMark {
   x: number;

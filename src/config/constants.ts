@@ -85,8 +85,8 @@ export const DEBUG = {
 
 export const PHYSICS = {
   GRAVITY: 1800,
-  MIN_JUMP_VELOCITY: -400,
-  MAX_JUMP_VELOCITY: -700,
+  MIN_JUMP_VELOCITY: -450,
+  MAX_JUMP_VELOCITY: -720,
   JUMP_HOLD_FORCE: 2800,
   MAX_JUMP_HOLD_TIME: 180,
 } as const;
@@ -189,10 +189,10 @@ export const OBSTACLE_TYPES = {
     category: 'ground' as const,
   },
   streetlight: {
-    width: 15, // Pole width
-    height: 120, // Total height
-    hitboxHeight: 25, // Only top part has collision
-    hitboxWidth: 40, // Width of the lamp part
+    width: 20, // Pole width
+    height: 180, // Total height
+    hitboxHeight: 35, // Only top part has collision
+    hitboxWidth: 55, // Width of the lamp part
     weight: 0.1, // 10% spawn chance
     category: 'aerial' as const,
   },

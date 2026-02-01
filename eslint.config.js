@@ -21,7 +21,11 @@ export default [
         requestAnimationFrame: 'readonly',
         KeyboardEvent: 'readonly',
         MouseEvent: 'readonly',
+        HTMLImageElement: 'readonly',
+        Image: 'readonly',
+        localStorage: 'readonly',
         performance: 'readonly',
+        navigator: 'readonly',
       },
     },
     plugins: {
