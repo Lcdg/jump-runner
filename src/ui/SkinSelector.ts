@@ -4,6 +4,7 @@
  */
 
 import { SkinManager } from '../skins/SkinManager';
+import { isTouchDevice } from '../utils/platform';
 import { UI, COLORS } from '../config/constants';
 
 // Arrow button hit zones (set during render)
@@ -14,12 +15,17 @@ interface HitZone {
   h: number;
 }
 
+const SWIPE_THRESHOLD = 50;
+
 export class SkinSelector {
   private isOpen: boolean = false;
   private skinManager: SkinManager;
   private previewIndex: number = 0;
   private prevArrow: HitZone = { x: 0, y: 0, w: 0, h: 0 };
   private nextArrow: HitZone = { x: 0, y: 0, w: 0, h: 0 };
+  private touchStartX: number | null = null;
+  private arrowPressTimer: number = 0;
+  private pressedArrow: 'prev' | 'next' | null = null;
 
   constructor(skinManager: SkinManager) {
     this.skinManager = skinManager;
@@ -61,14 +67,40 @@ export class SkinSelector {
     if (!this.isOpen) return false;
 
     if (this.hitTest(x, y, this.prevArrow)) {
+      this.pressedArrow = 'prev';
+      this.arrowPressTimer = 0.1;
       this.prevSkin();
       return true;
     }
     if (this.hitTest(x, y, this.nextArrow)) {
+      this.pressedArrow = 'next';
+      this.arrowPressTimer = 0.1;
       this.nextSkin();
       return true;
     }
     return false;
+  }
+
+  handleTouchStart(x: number): void {
+    if (!this.isOpen) return;
+    this.touchStartX = x;
+  }
+
+  handleTouchEnd(x: number): 'prev' | 'next' | null {
+    if (!this.isOpen || this.touchStartX === null) return null;
+
+    const deltaX = x - this.touchStartX;
+    this.touchStartX = null;
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return null;
+
+    if (deltaX < 0) {
+      this.nextSkin();
+      return 'next';
+    } else {
+      this.prevSkin();
+      return 'prev';
+    }
   }
 
   private hitTest(x: number, y: number, zone: HitZone): boolean {
@@ -122,10 +154,21 @@ export class SkinSelector {
     this.prevArrow = { x: boxX + 15, y: arrowY, w: arrowSize, h: arrowSize };
     this.nextArrow = { x: boxX + boxW - 15 - arrowSize, y: arrowY, w: arrowSize, h: arrowSize };
 
+    // Update press timer
+    if (this.arrowPressTimer > 0) {
+      this.arrowPressTimer -= 0.016; // ~1 frame
+      if (this.arrowPressTimer <= 0) {
+        this.pressedArrow = null;
+      }
+    }
+
     ctx.font = '32px Arial';
     ctx.fillStyle = '#778DA9';
+    ctx.globalAlpha = this.pressedArrow === 'prev' ? 0.5 : 1;
     ctx.fillText('◄', boxX + 40, boxY + boxH / 2);
+    ctx.globalAlpha = this.pressedArrow === 'next' ? 0.5 : 1;
     ctx.fillText('►', boxX + boxW - 40, boxY + boxH / 2);
+    ctx.globalAlpha = 1;
 
     // Skin name (highlighted)
     ctx.font = 'bold 20px Arial';
@@ -144,7 +187,10 @@ export class SkinSelector {
     // Close hint
     ctx.font = '14px Arial';
     ctx.fillStyle = '#E0E1DD';
-    ctx.fillText('Press S or ESC to close', width / 2, boxY + boxH - 25);
+    const closeHint = isTouchDevice()
+      ? 'Swipe or tap arrows \u2022 Tap \uD83C\uDFA8 to close'
+      : 'Press S or ESC to close';
+    ctx.fillText(closeHint, width / 2, boxY + boxH - 25);
 
     // Reset alignment
     ctx.textAlign = 'left';

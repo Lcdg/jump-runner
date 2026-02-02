@@ -5,11 +5,15 @@
 
 import { COLORS, CANVAS } from '../config/constants';
 
+type ResizeCallback = (width: number, height: number) => void;
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private width: number = 0;
   private height: number = 0;
+  private resizeCallback: ResizeCallback | null = null;
+  private resizeRafId: number = 0;
 
   constructor(canvasId: string) {
     const canvasElement = document.getElementById(canvasId);
@@ -18,7 +22,10 @@ export class Renderer {
     }
     this.canvas = canvasElement as HTMLCanvasElement;
 
-    const context = this.canvas.getContext('2d');
+    const context = this.canvas.getContext('2d', {
+      desynchronized: true,
+      alpha: false,
+    });
     if (!context) {
       throw new Error('Failed to get 2D context from canvas');
     }
@@ -27,7 +34,10 @@ export class Renderer {
     this.setupCanvas();
     this.preventDefaultTouchBehavior();
     this.handleResize();
-    window.addEventListener('resize', () => this.handleResize());
+
+    const onResizeEvent = (): void => this.scheduleResize();
+    window.addEventListener('resize', onResizeEvent);
+    window.addEventListener('orientationchange', onResizeEvent);
   }
 
   private setupCanvas(): void {
@@ -43,11 +53,30 @@ export class Renderer {
     });
   }
 
+  private scheduleResize(): void {
+    if (this.resizeRafId) {
+      cancelAnimationFrame(this.resizeRafId);
+    }
+    this.resizeRafId = requestAnimationFrame(() => {
+      this.resizeRafId = 0;
+      this.handleResize();
+    });
+  }
+
   private handleResize(): void {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
+    this.ctx.imageSmoothingEnabled = false;
+
+    if (this.resizeCallback) {
+      this.resizeCallback(this.width, this.height);
+    }
+  }
+
+  onResize(callback: ResizeCallback): void {
+    this.resizeCallback = callback;
   }
 
   clear(): void {

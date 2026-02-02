@@ -42,6 +42,31 @@ describe('Renderer calculations', () => {
     });
   });
 
+  describe('groundY recalculation after resize', () => {
+    it('should recalculate groundY for portrait orientation', () => {
+      const portraitHeight = 812; // iPhone X portrait
+      const groundY = Math.floor(portraitHeight * CANVAS.GROUND_Y_PERCENT);
+
+      expect(groundY).toBe(690); // 812 * 0.85 = 690.2 → 690
+    });
+
+    it('should recalculate groundY for landscape orientation', () => {
+      const landscapeHeight = 375; // iPhone X landscape
+      const groundY = Math.floor(landscapeHeight * CANVAS.GROUND_Y_PERCENT);
+
+      expect(groundY).toBe(318); // 375 * 0.85 = 318.75 → 318
+    });
+
+    it('should maintain consistent positions after orientation change', () => {
+      const portraitGroundY = Math.floor(812 * CANVAS.GROUND_Y_PERCENT);
+      const landscapeGroundY = Math.floor(375 * CANVAS.GROUND_Y_PERCENT);
+
+      // Both should be proportionally correct
+      expect(portraitGroundY / 812).toBeCloseTo(CANVAS.GROUND_Y_PERCENT, 1);
+      expect(landscapeGroundY / 375).toBeCloseTo(CANVAS.GROUND_Y_PERCENT, 1);
+    });
+  });
+
   describe('CANVAS constants', () => {
     it('should have GROUND_Y_PERCENT set to 0.85 (per front-end-spec)', () => {
       expect(CANVAS.GROUND_Y_PERCENT).toBe(0.85);

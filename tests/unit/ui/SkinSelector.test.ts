@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SkinSelector } from '../../../src/ui/SkinSelector';
 import { SkinManager } from '../../../src/skins/SkinManager';
 import { PlayerSkin } from '../../../src/skins/PlayerSkin';
+
+vi.mock('../../../src/utils/platform', () => ({
+  isTouchDevice: vi.fn(() => false),
+}));
+
+import { SkinSelector } from '../../../src/ui/SkinSelector';
+import { isTouchDevice } from '../../../src/utils/platform';
 
 function createMockSkin(name: string): PlayerSkin {
   return {
@@ -133,6 +139,63 @@ describe('SkinSelector', () => {
         (call: unknown[]) => call[0] === 'Classic',
       );
       expect(skinNameCall).toBeDefined();
+    });
+
+    it('should show desktop close hint by default', () => {
+      const ctx = createMockContext();
+      selector.toggle();
+      selector.render(ctx, 800, 600);
+      const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls;
+      const hintCall = fillTextCalls.find(
+        (call: unknown[]) => (call[0] as string).includes('Press S or ESC'),
+      );
+      expect(hintCall).toBeDefined();
+    });
+
+    it('should show touch close hint on touch device', () => {
+      vi.mocked(isTouchDevice).mockReturnValue(true);
+      const ctx = createMockContext();
+      selector.toggle();
+      selector.render(ctx, 800, 600);
+      const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls;
+      const hintCall = fillTextCalls.find(
+        (call: unknown[]) => (call[0] as string).includes('Swipe'),
+      );
+      expect(hintCall).toBeDefined();
+      vi.mocked(isTouchDevice).mockReturnValue(false);
+    });
+  });
+
+  describe('swipe', () => {
+    it('should navigate to next skin on swipe left', () => {
+      selector.toggle();
+      selector.handleTouchStart(300);
+      const result = selector.handleTouchEnd(200); // deltaX = -100
+      expect(result).toBe('next');
+      expect(manager.getActiveName()).toBe('Detailed');
+    });
+
+    it('should navigate to previous skin on swipe right', () => {
+      selector.toggle();
+      selector.handleTouchStart(200);
+      const result = selector.handleTouchEnd(300); // deltaX = +100
+      expect(result).toBe('prev');
+      expect(manager.getActiveName()).toBe('Extra'); // wraps
+    });
+
+    it('should ignore swipe below threshold', () => {
+      selector.toggle();
+      selector.handleTouchStart(200);
+      const result = selector.handleTouchEnd(230); // deltaX = +30 (< 50)
+      expect(result).toBeNull();
+      expect(manager.getActiveName()).toBe('Classic');
+    });
+
+    it('should ignore swipe when closed', () => {
+      selector.handleTouchStart(300);
+      const result = selector.handleTouchEnd(200);
+      expect(result).toBeNull();
+      expect(manager.getActiveName()).toBe('Classic');
     });
   });
 });

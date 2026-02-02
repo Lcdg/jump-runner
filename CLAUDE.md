@@ -62,33 +62,19 @@ Mini-jeu de type endless runner en TypeScript/Canvas.
 | 6.3 | Animations Fluides et Réalistes | Done |
 | 6.4 | Sélecteur de Skin en Jeu | Done |
 
-**Epic 7 : Compatibilité Mobile & Optimisations** - À faire
+**Epic 7 : Compatibilité Mobile & Optimisations** - Terminé
 
 | Story | Titre | Status |
 |-------|-------|--------|
-| 7.1 | Viewport & Meta Tags Mobile | Draft |
-| 7.2 | Contrôles Tactiles | Draft |
-| 7.3 | Layout Adaptatif (Portrait & Paysage) | Draft |
-| 7.4 | UI Tactile (Boutons & Skin Selector) | Draft |
-| 7.5 | Optimisations Performance Mobile | Draft |
+| 7.1 | Viewport & Meta Tags Mobile | Ready for Review |
+| 7.2 | Contrôles Tactiles | Ready for Review |
+| 7.3 | Layout Adaptatif (Portrait & Paysage) | Ready for Review |
+| 7.4 | UI Tactile (Boutons & Skin Selector) | Ready for Review |
+| 7.5 | Optimisations Performance Mobile | Ready for Review |
 
 ## Prochaine Action
 
-### Commencer Epic 7 - Story 7.1
-
-Pour reprendre le travail :
-
-```
-/dev
-```
-
-Puis implémenter la Story 7.1 (Viewport & Meta Tags Mobile)
-
-### Séquence Epic 7
-
-```
-7.1 (Viewport) → 7.2 (Touch) → 7.3 (Layout) → 7.4 (UI Tactile) → 7.5 (Performance)
-```
+Toutes les stories de l'Epic 7 sont implémentées et en "Ready for Review". Le projet est complet (Epics 1-7).
 
 ## Architecture
 
@@ -104,7 +90,7 @@ src/
 └── rendering/      # Renderer.ts, SpriteSheet.ts
 ```
 
-**334 tests unitaires passent.**
+**363 tests unitaires passent.**
 
 ## Commandes Utiles
 

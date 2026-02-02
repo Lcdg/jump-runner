@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { InputManager } from '../../../src/input/InputManager';
 import { InputAction } from '../../../src/core/types';
+
+vi.mock('../../../src/utils/platform', () => ({
+  isTouchDevice: vi.fn(() => false),
+}));
+
+import { InputManager } from '../../../src/input/InputManager';
+import { isTouchDevice } from '../../../src/utils/platform';
 
 describe('InputManager', () => {
   let inputManager: InputManager;
@@ -144,6 +150,91 @@ describe('InputManager', () => {
       inputManager.reset();
 
       expect(inputManager.isJumpHeld()).toBe(false);
+    });
+  });
+
+  describe('touch input', () => {
+    beforeEach(() => {
+      vi.mocked(isTouchDevice).mockReturnValue(true);
+      inputManager = new InputManager();
+      inputManager.attach((action) => receivedActions.push(action));
+    });
+
+    afterEach(() => {
+      vi.mocked(isTouchDevice).mockReturnValue(false);
+    });
+
+    function createTouchEvent(
+      type: string,
+      identifier: number = 0
+    ): TouchEvent {
+      const touch = { identifier } as Touch;
+      return new TouchEvent(type, {
+        changedTouches: [touch],
+        cancelable: true,
+      });
+    }
+
+    it('should emit jump_start on touchstart', () => {
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+
+      expect(receivedActions).toEqual([{ type: 'jump_start' }]);
+    });
+
+    it('should emit jump_end on touchend', () => {
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+      document.dispatchEvent(createTouchEvent('touchend', 0));
+
+      expect(receivedActions).toEqual([
+        { type: 'jump_start' },
+        { type: 'jump_end' },
+      ]);
+    });
+
+    it('should emit jump_end on touchcancel', () => {
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+      document.dispatchEvent(createTouchEvent('touchcancel', 0));
+
+      expect(receivedActions).toEqual([
+        { type: 'jump_start' },
+        { type: 'jump_end' },
+      ]);
+    });
+
+    it('should ignore additional touch points (multi-touch)', () => {
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+      document.dispatchEvent(createTouchEvent('touchstart', 1));
+
+      expect(receivedActions).toEqual([{ type: 'jump_start' }]);
+    });
+
+    it('should not emit jump_end when a non-tracked finger lifts', () => {
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+      document.dispatchEvent(createTouchEvent('touchend', 1));
+
+      expect(receivedActions).toEqual([{ type: 'jump_start' }]);
+      expect(inputManager.isJumpHeld()).toBe(true);
+    });
+
+    it('should track isTouchActive correctly', () => {
+      expect(inputManager.isTouchActive()).toBe(false);
+
+      document.dispatchEvent(createTouchEvent('touchstart', 0));
+      expect(inputManager.isTouchActive()).toBe(true);
+
+      document.dispatchEvent(createTouchEvent('touchend', 0));
+      expect(inputManager.isTouchActive()).toBe(false);
+    });
+
+    it('should not attach mouse listeners on touch device', () => {
+      const mouseActions: InputAction[] = [];
+      const touchInputManager = new InputManager();
+      touchInputManager.attach((action) => mouseActions.push(action));
+
+      document.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+      expect(mouseActions).toEqual([]);
+
+      touchInputManager.detach();
     });
   });
 });

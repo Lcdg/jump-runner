@@ -26,6 +26,9 @@ export default [
         localStorage: 'readonly',
         performance: 'readonly',
         navigator: 'readonly',
+        TouchEvent: 'readonly',
+        Touch: 'readonly',
+        cancelAnimationFrame: 'readonly',
       },
     },
     plugins: {

@@ -10,6 +10,7 @@ import { InputManager } from '../input/InputManager';
 import { checkAABBCollision } from '../systems/CollisionSystem';
 import { getSpawnTime, calculateSpawnInterval, SpawnInterval } from '../systems/DifficultySystem';
 import { shouldAutoJump, AutoPlayerInput } from '../systems/AutoPlayerSystem';
+import { PerformanceMonitor } from '../systems/PerformanceMonitor';
 import { GameStateManager } from './GameStateManager';
 import { InputAction, GroundMark, Tree, Building, BuildingWindow, Crosswalk, ObstacleType, CollisionCallback, GameStateType } from './types';
 import { DEBUG, COLORS, OBSTACLE_COLORS, PLAYER, SCROLL, TREES, BUILDINGS, CROSSWALK, OBSTACLE, OBSTACLE_TYPES, COLLISION, UI, AUTO_PLAYER, SCORE, SPAWN_RULES } from '../config/constants';
@@ -17,6 +18,7 @@ import { SkinManager } from '../skins/SkinManager';
 import { ClassicSkin } from '../skins/ClassicSkin';
 import { DetailedSkin } from '../skins/DetailedSkin';
 import { SkinSelector } from '../ui/SkinSelector';
+import { isTouchDevice } from '../utils/platform';
 
 export class Game {
   private renderer: Renderer;
@@ -68,6 +70,15 @@ export class Game {
   private skinManager: SkinManager;
   private skinSelector: SkinSelector;
 
+  // Touch UI
+  private skinButtonZone = { x: 0, y: 0, w: 48, h: 48 };
+  private skinButtonPressed: boolean = false;
+  private skinButtonPressTimer: number = 0;
+  private isTouch: boolean = false;
+
+  // Performance
+  private perfMonitor: PerformanceMonitor = new PerformanceMonitor();
+
   constructor() {
     this.renderer = new Renderer('game');
     this.player = new Player(this.renderer.getGroundY());
@@ -93,19 +104,82 @@ export class Game {
     // Initialize skin selector
     this.skinSelector = new SkinSelector(this.skinManager);
 
-    // Click handling for skin selector arrows
+    // Detect touch device
+    this.isTouch = isTouchDevice();
+
+    // Click/tap handling for skin selector and skins button
     const canvas = this.renderer.getCanvas();
+    const handleTap = (x: number, y: number): void => {
+      if (this.stateManager.getState() !== 'attract') return;
+
+      if (this.skinSelector.isVisible()) {
+        this.skinSelector.handleClick(x, y);
+        return;
+      }
+
+      // Check skins button tap (touch only)
+      if (this.isTouch && this.hitTestSkinButton(x, y)) {
+        this.skinButtonPressed = true;
+        this.skinButtonPressTimer = 0.1;
+        this.skinSelector.toggle();
+      }
+    };
+
     canvas.addEventListener('click', (event: MouseEvent) => {
-      if (!this.skinSelector.isVisible()) return;
       const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      this.skinSelector.handleClick(x, y);
+      handleTap(event.clientX - rect.left, event.clientY - rect.top);
     });
+
+    if (this.isTouch) {
+      canvas.addEventListener('touchstart', (event: TouchEvent) => {
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const rect = canvas.getBoundingClientRect();
+        this.skinSelector.handleTouchStart(touch.clientX - rect.left);
+      }, { passive: true });
+
+      canvas.addEventListener('touchend', (event: TouchEvent) => {
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+
+        // Try swipe first; if no swipe detected, handle as tap
+        const swipeResult = this.skinSelector.handleTouchEnd(x);
+        if (!swipeResult) {
+          handleTap(x, y);
+        }
+      }, { passive: true });
+    }
 
     // Initialize state manager
     this.stateManager = new GameStateManager();
     this.setupStateCallbacks();
+
+    // Listen for resize/orientation changes
+    this.renderer.onResize(() => this.handleResize());
+  }
+
+  private handleResize(): void {
+    const newGroundY = this.renderer.getGroundY();
+    const newWidth = this.renderer.getWidth();
+
+    // Reposition player to new ground level
+    this.player.reset(newGroundY);
+
+    // Filter out obstacles that are now off-screen
+    this.obstacles = this.obstacles.filter(
+      (obs) => obs.getPosition().x < newWidth + OBSTACLE.SPAWN_MARGIN
+    );
+
+    // Reinitialize scrolling elements for the new width
+    this.groundMarks = [];
+    this.crosswalks = [];
+    this.trees = [];
+    this.buildings = [];
+    this.initBuildings();
+    this.initScrollingElements();
   }
 
   private setupStateCallbacks(): void {
@@ -361,6 +435,7 @@ export class Game {
     this.lastDeltaTime = deltaTime;
 
     this.updateFps(currentTime);
+    this.perfMonitor.update(deltaTime);
     this.update(deltaTime);
     this.render();
 
@@ -636,12 +711,15 @@ export class Game {
       const buildingY = groundY - building.height;
       ctx.fillRect(building.x, buildingY, building.width, building.height);
 
-      // Draw lit windows
+      // Draw lit windows (skip every other in low quality)
       ctx.fillStyle = COLORS.WINDOW;
-      for (const window of building.windows) {
+      const lowQ = this.perfMonitor.isLowQuality();
+      for (let wi = 0; wi < building.windows.length; wi++) {
+        if (lowQ && wi % 2 === 1) continue;
+        const win = building.windows[wi];
         ctx.fillRect(
-          building.x + window.x,
-          buildingY + window.y,
+          building.x + win.x,
+          buildingY + win.y,
           BUILDINGS.WINDOW_SIZE,
           BUILDINGS.WINDOW_SIZE
         );
@@ -764,20 +842,22 @@ export class Game {
     const lampX = pos.x - (config.hitboxWidth - w) / 2;
     ctx.fillRect(lampX, pos.y, config.hitboxWidth, config.hitboxHeight);
 
-    // Halo effect (semi-transparent glow)
-    ctx.fillStyle = OBSTACLE_COLORS.STREETLIGHT_HALO;
-    ctx.globalAlpha = 0.3;
-    const haloSize = 50;
-    ctx.beginPath();
-    ctx.arc(
-      lampX + config.hitboxWidth / 2,
-      pos.y + config.hitboxHeight,
-      haloSize,
-      0,
-      Math.PI // Only bottom half
-    );
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    // Halo effect (semi-transparent glow) — skip in low quality
+    if (!this.perfMonitor.isLowQuality()) {
+      ctx.fillStyle = OBSTACLE_COLORS.STREETLIGHT_HALO;
+      ctx.globalAlpha = 0.3;
+      const haloSize = 50;
+      ctx.beginPath();
+      ctx.arc(
+        lampX + config.hitboxWidth / 2,
+        pos.y + config.hitboxHeight,
+        haloSize,
+        0,
+        Math.PI // Only bottom half
+      );
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
 
   private renderSign(obstacle: Obstacle): void {
@@ -820,20 +900,24 @@ export class Game {
     const signX = pos.x - (config.hitboxWidth - w) / 2;
     ctx.fillRect(signX, pos.y + config.hitboxHeight - 4, config.hitboxWidth, 4);
 
-    // Sign panel glow (behind)
-    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
-    ctx.globalAlpha = 0.4;
-    ctx.fillRect(signX - 3, pos.y - 3, config.hitboxWidth + 6, config.hitboxHeight + 6);
-    ctx.globalAlpha = 1;
+    // Sign panel glow (behind) — skip in low quality
+    if (!this.perfMonitor.isLowQuality()) {
+      ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
+      ctx.globalAlpha = 0.4;
+      ctx.fillRect(signX - 3, pos.y - 3, config.hitboxWidth + 6, config.hitboxHeight + 6);
+      ctx.globalAlpha = 1;
+    }
 
     // Sign panel
     ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_PANEL;
     ctx.fillRect(signX, pos.y, config.hitboxWidth, config.hitboxHeight);
 
-    // Inner glow lines (to simulate neon)
-    ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
-    ctx.fillRect(signX + 5, pos.y + 5, config.hitboxWidth - 10, 3);
-    ctx.fillRect(signX + 5, pos.y + config.hitboxHeight - 8, config.hitboxWidth - 10, 3);
+    // Inner glow lines (to simulate neon) — skip in low quality
+    if (!this.perfMonitor.isLowQuality()) {
+      ctx.fillStyle = OBSTACLE_COLORS.SHOP_SIGN_GLOW;
+      ctx.fillRect(signX + 5, pos.y + 5, config.hitboxWidth - 10, 3);
+      ctx.fillRect(signX + 5, pos.y + config.hitboxHeight - 8, config.hitboxWidth - 10, 3);
+    }
   }
 
   private renderTrees(): void {
@@ -925,10 +1009,29 @@ export class Game {
     });
   }
 
+  private hitTestSkinButton(x: number, y: number): boolean {
+    const z = this.skinButtonZone;
+    return x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
+  }
+
+  private applyShadow(ctx: CanvasRenderingContext2D, color: string, blur: number, ox: number, oy: number): void {
+    if (this.perfMonitor.isLowQuality()) return;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = blur;
+    ctx.shadowOffsetX = ox;
+    ctx.shadowOffsetY = oy;
+  }
+
+  private getScaledFont(baseSize: number, family: string): string {
+    const height = this.renderer.getHeight();
+    const scale = height < 400 ? height / 400 : 1;
+    return `${Math.round(baseSize * scale)}px ${family}`;
+  }
+
   private renderFps(): void {
     const ctx = this.renderer.getContext();
     ctx.fillStyle = COLORS.FPS_TEXT;
-    ctx.font = '14px monospace';
+    ctx.font = this.getScaledFont(14, 'monospace');
     ctx.fillText(`FPS: ${this.currentFps}`, 10, 20);
   }
 
@@ -937,28 +1040,28 @@ export class Game {
     const width = this.renderer.getWidth();
     const height = this.renderer.getHeight();
 
-    const text = 'Press Space to Start';
+    const text = this.isTouch ? 'Tap to Start' : 'Press Space to Start';
 
-    ctx.font = UI.OVERLAY_FONT;
+    ctx.font = this.getScaledFont(32, 'Arial');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Shadow for better readability
-    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
-    ctx.shadowBlur = UI.OVERLAY_SHADOW_BLUR;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+    this.applyShadow(ctx, UI.OVERLAY_SHADOW_COLOR, UI.OVERLAY_SHADOW_BLUR, 2, 2);
 
     ctx.fillStyle = UI.OVERLAY_COLOR;
     ctx.fillText(text, width / 2, height / 2);
 
     // Skin hint (only when selector is not open)
     if (!this.skinSelector.isVisible()) {
-      ctx.font = '16px Arial';
-      ctx.globalAlpha = 0.6;
-      ctx.fillStyle = '#E0E1DD';
-      ctx.fillText('Press S to change skin', width / 2, height - 40);
-      ctx.globalAlpha = 1;
+      if (this.isTouch) {
+        this.renderSkinButton(ctx, width, height);
+      } else {
+        ctx.font = this.getScaledFont(16, 'Arial');
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#E0E1DD';
+        ctx.fillText('Press S to change skin', width / 2, height - 40);
+        ctx.globalAlpha = 1;
+      }
     }
 
     // Reset shadow
@@ -972,6 +1075,43 @@ export class Game {
     ctx.textBaseline = 'alphabetic';
   }
 
+  private renderSkinButton(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const btnSize = 48;
+    const margin = 16;
+    const btnX = width - btnSize - margin;
+    const btnY = height - btnSize - margin;
+
+    // Update hit zone
+    this.skinButtonZone = { x: btnX, y: btnY, w: btnSize, h: btnSize };
+
+    // Update press timer
+    if (this.skinButtonPressTimer > 0) {
+      this.skinButtonPressTimer -= this.lastDeltaTime;
+      if (this.skinButtonPressTimer <= 0) {
+        this.skinButtonPressed = false;
+      }
+    }
+
+    // Button background with feedback
+    ctx.globalAlpha = this.skinButtonPressed ? 0.5 : 0.8;
+    ctx.fillStyle = '#1B263B';
+    ctx.fillRect(btnX, btnY, btnSize, btnSize);
+
+    // Border
+    ctx.strokeStyle = '#778DA9';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(btnX, btnY, btnSize, btnSize);
+
+    // Icon
+    ctx.globalAlpha = this.skinButtonPressed ? 0.7 : 1;
+    ctx.font = this.getScaledFont(24, 'Arial');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFD60A';
+    ctx.fillText('\uD83C\uDFA8', btnX + btnSize / 2, btnY + btnSize / 2);
+    ctx.globalAlpha = 1;
+  }
+
   private renderScore(): void {
     const ctx = this.renderer.getContext();
     const width = this.renderer.getWidth();
@@ -979,16 +1119,12 @@ export class Game {
     const displayScore = Math.floor(this.score);
     const text = `Score: ${displayScore}`;
 
-    ctx.font = SCORE.FONT;
+    ctx.font = this.getScaledFont(24, 'Arial');
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
     ctx.fillStyle = SCORE.COLOR;
 
-    // Shadow for better readability
-    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
-    ctx.shadowBlur = 2;
-    ctx.shadowOffsetX = 1;
-    ctx.shadowOffsetY = 1;
+    this.applyShadow(ctx, UI.OVERLAY_SHADOW_COLOR, 2, 1, 1);
 
     ctx.fillText(text, width - SCORE.PADDING, SCORE.PADDING);
 
@@ -1009,25 +1145,25 @@ export class Game {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Shadow for better readability
-    ctx.shadowColor = UI.OVERLAY_SHADOW_COLOR;
-    ctx.shadowBlur = UI.OVERLAY_SHADOW_BLUR;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+    this.applyShadow(ctx, UI.OVERLAY_SHADOW_COLOR, UI.OVERLAY_SHADOW_BLUR, 2, 2);
 
     // "Game Over" title
-    ctx.font = UI.OVERLAY_FONT;
+    ctx.font = this.getScaledFont(32, 'Arial');
     ctx.fillStyle = COLORS.GAME_OVER;
     ctx.fillText('Game Over', width / 2, height / 2 - 50);
 
     // Final score
-    ctx.font = SCORE.FONT;
+    ctx.font = this.getScaledFont(24, 'Arial');
     ctx.fillStyle = UI.OVERLAY_COLOR;
     ctx.fillText(`Score: ${this.finalScore}`, width / 2, height / 2);
 
     // Restart message
-    ctx.font = '20px Arial';
-    ctx.fillText('Press Space to Restart', width / 2, height / 2 + 50);
+    ctx.font = this.getScaledFont(20, 'Arial');
+    ctx.fillText(
+      this.isTouch ? 'Tap to Restart' : 'Press Space to Restart',
+      width / 2,
+      height / 2 + 50,
+    );
 
     // Reset shadow and alignment
     ctx.shadowColor = 'transparent';
